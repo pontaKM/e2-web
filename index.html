@@ -34,7 +34,7 @@
   .page.on { display:block; }
   .scrollpage { overflow-y:auto; -webkit-overflow-scrolling:touch; }
 
-  /* LIVE */
+  /* MFX */
   #xy { position:absolute; left:0; top:0; background:#1b1c1f; border:1px solid #2e3034; border-radius:4px; box-sizing:border-box; overflow:hidden;
         background-image:linear-gradient(#25272b 1px, transparent 1px), linear-gradient(90deg, #25272b 1px, transparent 1px); background-size:12.5% 12.5%; }
   #xy .lx { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; background:#55585e; }
@@ -57,6 +57,54 @@
   #rotate { position:fixed; left:0; top:0; right:0; bottom:0; background:#111214; color:#e4e4e4; display:none; align-items:center; justify-content:center; font-size:22px; z-index:9; }
   .pad.on { background:#f59e0b; color:#2a1a00; }
   #pads.stale .pad { opacity:.25; }
+
+  /* 共通の部品：つまみ（下が欠けた円弧 270°）・フェーダー・ON/OFF・絵。色は役割グループごと */
+  .w { position:absolute; box-sizing:border-box; }
+  .w svg { position:absolute; left:50%; top:0; display:block; }
+  .w .trk { fill:none; stroke:#34363c; stroke-width:4; stroke-linecap:round; }
+  .w .arc { fill:none; stroke-width:4; stroke-linecap:round; }
+  .w .ind { stroke:#ffffff; stroke-width:2.5; stroke-linecap:round; }
+  .w .rtk { stroke:#e4e4e4; stroke-width:2; stroke-linecap:round; }
+  .w .kl { position:absolute; left:0; right:0; text-align:center; font-size:13px; white-space:nowrap; }
+  .w .kv { position:absolute; left:0; right:0; text-align:center; font-size:11px; line-height:13px; color:#6a6d73; white-space:nowrap; overflow:hidden; }
+  .w.big .kv { font-size:15px; line-height:17px; color:#a0a3a9; }
+  .w.act { background:#26282c; border-radius:4px; box-shadow:inset 0 0 0 2px #e4e4e4; }
+  .w.tg { border-radius:4px; background:#2c2e33; display:flex; align-items:center; justify-content:center; font-size:15px; color:#e4e4e4; }
+  .w.tg.big { font-size:20px; font-weight:700; }
+  .w.tg.on { background:#f59e0b; color:#2a1a00; }
+  .w .gline { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
+  .w .gbase { fill:none; stroke:#34363c; stroke-width:1; }
+  .w.graph { background:#16171a; border-radius:4px; }
+  /* フェーダー：太い溝、グループ色の塗り、白いつまみ、基準 70 の線 */
+  .w .ftr { position:absolute; left:50%; width:16px; margin-left:-8px; top:0; border-radius:8px; background:#26282c; overflow:hidden; }
+  .w .ffl { position:absolute; left:0; right:0; bottom:0; }
+  .w .fref { position:absolute; left:0; right:0; height:2px; margin-top:-1px; background:#ffffff; box-shadow:0 0 0 1px #111214; }
+  .w .fcap { position:absolute; left:50%; width:30px; margin-left:-15px; height:10px; margin-top:-5px; border-radius:3px; background:#ffffff; }
+  .w .fcap.ref { background:#e4e4e4; box-shadow:0 0 0 2px #111214, 0 0 0 3px #e4e4e4; }
+  .w .fv { position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:14px; line-height:16px; color:#e4e4e4; }
+  .w .fd { position:absolute; left:0; right:0; bottom:16px; text-align:center; font-size:11px; line-height:13px; color:#8a8d93; }
+
+  /* MIX：1パート＝縦 1 列のミキサー卓 */
+  .mxl { position:absolute; left:0; font-size:12px; text-align:left; }
+  .mxh { position:absolute; box-sizing:border-box; border-radius:4px; background:#1b1c1f; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; }
+  .mxh .n { font-size:21px; font-weight:700; color:#fff; }
+  .mxh .m { font-size:10px; color:#e4e4e4; background:#3a3d44; border-radius:3px; padding:0 2px; margin-top:2px; visibility:hidden; }
+  .mxh.muted .n { color:#6a6d73; }
+  .mxh.muted .m { visibility:visible; }
+  .w.muted { opacity:.45; }
+  #mixBox.stale .w, #mixBox.stale .mxh, #partBox.stale .w { opacity:.25; }
+
+  /* PART：上にパート選択、下に役割ごとのカード */
+  .psel { position:absolute; box-sizing:border-box; border-radius:4px; background:#2c2e33; color:#e4e4e4; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; }
+  .psel.on { background:#e4e4e4; color:#111214; }
+  .psel.muted { color:#6a6d73; }
+  .psel.on.muted { color:#6a6d73; }
+  #pInfo { position:absolute; left:0; right:0; font-size:17px; color:#c9cbd0; white-space:nowrap; overflow:hidden; }
+  #pInfo b { color:#fff; font-size:20px; margin-right:10px; }
+  #pInfo .mt { font-size:13px; background:#3a3d44; border-radius:3px; padding:1px 5px; margin-left:8px; color:#e4e4e4; }
+  .card { position:absolute; box-sizing:border-box; border-radius:6px; background:#1b1c1f; }
+  .card .ct { position:absolute; left:10px; right:10px; top:6px; font-size:15px; white-space:nowrap; overflow:hidden; }
+  .card .ct .ty { color:#a0a3a9; margin-left:8px; font-size:14px; }
 
   /* 準備中・設定ページ */
   .note { color:#8a8d93; font-size:16px; padding:20px; }
@@ -88,6 +136,7 @@
 <div id="top">
   <button class="tab" data-page="live">MFX</button>
   <button class="tab" data-page="mix">MIX</button>
+  <button class="tab" data-page="part">PART</button>
   <button class="tab" data-page="pattern">PATTERN</button>
   <button class="tab" data-page="setup">SETUP</button>
   <span class="sp"></span>
@@ -98,7 +147,7 @@
   <span id="tDot"></span>
 </div>
 
-<!-- LIVE -->
+<!-- MFX -->
 <div class="page" id="p_live">
   <div id="xy">
     <div class="lx" id="xyLx"></div><div class="ly" id="xyLy"></div><div class="dot" id="xyDot"></div>
@@ -114,7 +163,10 @@
 </div>
 
 <!-- MIX -->
-<div class="page scrollpage" id="p_mix"><div class="note jp">MIX タブ（レベル・パン・カットオフ・レゾナンス）は次の版で作ります。</div></div>
+<div class="page" id="p_mix"><div id="mixBox"></div></div>
+
+<!-- PART -->
+<div class="page" id="p_part"><div id="partBox"></div></div>
 
 <!-- PATTERN -->
 <div class="page scrollpage setup" id="p_pattern">
@@ -165,7 +217,7 @@
 <script src="e2core.js?v=7"></script>
 <script>
 (function () {
-  var SCREEN = "base-v12";
+  var SCREEN = "base-v16";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -182,7 +234,7 @@
   function pressFlash(el) { el.className += " press"; setTimeout(function () { el.className = el.className.replace(/ press/g, ""); }, 150); }
 
   // ---------------- タブ ----------------
-  var PAGES = ["live", "mix", "pattern", "setup"], curPage = "live";
+  var PAGES = ["live", "mix", "part", "pattern", "setup"], curPage = "live";
   function showPage(name) {
     curPage = name;
     for (var i = 0; i < PAGES.length; i++) $("p_" + PAGES[i]).className = $("p_" + PAGES[i]).className.replace(/ on/g, "") + (PAGES[i] === name ? " on" : "");
@@ -194,12 +246,73 @@
     var tabs = document.querySelectorAll(".tab");
     for (var i = 0; i < tabs.length; i++) (function (t) { onPress(t, function () { showPage(t.getAttribute("data-page")); }); })(tabs[i]);
   })();
-  // LIVE ではページ全体が動かないようにする
-  document.addEventListener("touchmove", function (e) { if (curPage === "live") e.preventDefault(); }, { passive: false });
+  // MFX・MIX・PART ではページ全体が動かないようにする
+  document.addEventListener("touchmove", function (e) { if (curPage === "live" || curPage === "mix" || curPage === "part") e.preventDefault(); }, { passive: false });
+
+  // ---------------- 部品（MIX・PART で共通） ----------------
+  //  kind: "knob"（つまみ）/ "fader"（縦フェーダー）/ "toggle"（タップで ON/OFF）/ "filter"・"env"（表示だけの絵）
+  //  part: パート番号、または "sel"（PART ページで選んでいるパート）
+  //  bi: 真上が中央のつまみ（−64〜+63）/ ref: 基準の値（印を付ける）/ g: 役割グループ（色）
+  var GROUP_COLOR = { mix: "#60a5fa", flt: "#a78bfa", env: "#2dd4bf", osc: "#e2e8f0", mod: "#fde68a", ifx: "#f472b6" };
+  var FSHORT = { "OFF": "OFF" };
+  function filterShort(name) { return FSHORT[name] || String(name).replace("electribe ", "e ").replace("MS20 ", "MS "); }
+  var VOICES = ["MONO1", "MONO2", "POLY1", "POLY2"];
+  var LEVEL_REF = 70;            // 音量の基準（ユーザーは各パート 70 を基準にしている）
+  var KNOB_SENS = 0.5;           // つまみ：指を 1pt 動かしたときの変化量（0〜127 を約 254pt ≒ 4cm で動かす）
+  var selPart = 1;
+  try { var sp0 = parseInt(localStorage.getItem("e2ui:part"), 10); if (sp0 >= 1 && sp0 <= 16) selPart = sp0; } catch (e) {}
+  var WL = [];
+  function addW(o) { o.i = WL.length; o.id = "w" + o.i; WL.push(o); return o; }
+  function wPart(w) { return w.part === "sel" ? selPart : w.part; }
+  function wFields(w) { return w.f instanceof Array ? w.f : [w.f]; }
+  function wHTML(w, label, cls) {
+    var c = GROUP_COLOR[w.g], h = '<div class="w ' + w.kind + (cls ? " " + cls : "") + (w.kind === "toggle" ? " tg" : "") + '" id="' + w.id + '" data-w="' + w.i + '">';
+    if (w.kind === "knob") {
+      h += '<svg id="' + w.id + 'g" viewBox="0 0 40 40" width="36" height="36"><path class="trk" d="' + KNOB_TRACK + '"/>' +
+           '<path class="arc" id="' + w.id + 'a" d="" style="stroke:' + c + '"/><line class="ind" id="' + w.id + 'i" x1="20" y1="20" x2="20" y2="20"/>';
+      if (w.ref !== undefined) { var r0 = kpt(-135 + w.ref / 127 * 270, 17.6), r1 = kpt(-135 + w.ref / 127 * 270, 20); h += '<line class="rtk" x1="' + r0[0] + '" y1="' + r0[1] + '" x2="' + r1[0] + '" y2="' + r1[1] + '"/>'; }
+      h += '</svg>' + (label ? '<div class="kl" id="' + w.id + 'l" style="color:' + c + '">' + label + '</div>' : "") + '<div class="kv" id="' + w.id + 'v"></div>';
+    } else if (w.kind === "fader") {
+      h += '<div class="ftr" id="' + w.id + 't"><div class="ffl" id="' + w.id + 'f" style="background:' + c + '"></div></div>' +
+           (w.ref !== undefined ? '<div class="fref" id="' + w.id + 'r"></div>' : "") +
+           '<div class="fcap" id="' + w.id + 'c"></div><div class="fd" id="' + w.id + 'd"></div><div class="fv" id="' + w.id + 'v"></div>';
+    } else if (w.kind === "toggle") {
+      h += '<span id="' + w.id + 'v">-</span>';
+    } else {
+      h += '<svg id="' + w.id + 'g" width="100" height="40"><path class="gbase" id="' + w.id + 'b" d=""/>' +
+           '<path id="' + w.id + 'f" d="" style="fill:' + c + ';fill-opacity:.18;stroke:none"/>' +
+           '<path class="gline" id="' + w.id + 'a" d="" style="stroke:' + c + '"/></svg>';
+    }
+    return h + '</div>';
+  }
+  // 置き場所と大きさを決める（x, y, 幅, 高さ）。つまみはその中で上寄せ・中央、絵は全面
+  function placeW(w, x, y, wd, ht) {
+    var el = $(w.id);
+    el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = wd + "px"; el.style.height = ht + "px";
+    w.wd = wd; w.ht = ht;
+    if (w.kind === "knob") {
+      var big = el.className.indexOf("big") >= 0, lab = $(w.id + "l"), txt = (lab ? 16 : 0) + (big ? 18 : 13);
+      var k = Math.max(20, Math.min(wd - 4, ht - txt - 2)), sv = $(w.id + "g");
+      sv.setAttribute("width", k); sv.setAttribute("height", k); sv.style.marginLeft = (-k / 2) + "px";
+      if (lab) lab.style.top = (k + 1) + "px";
+      $(w.id + "v").style.top = (k + 1 + (lab ? 16 : 0)) + "px";
+    } else if (w.kind === "fader") {
+      w.trackH = ht - 32 - 10; w.trackTop = 5;
+      var t = $(w.id + "t"); t.style.top = w.trackTop + "px"; t.style.height = w.trackH + "px";
+      if (w.ref !== undefined) $(w.id + "r").style.top = (w.trackTop + w.trackH * (1 - w.ref / 127)) + "px";
+    } else if (w.kind === "filter" || w.kind === "env") {
+      var g = $(w.id + "g"); w.gw = wd - 12; w.gh = ht - 12;
+      g.setAttribute("width", w.gw); g.setAttribute("height", w.gh); g.setAttribute("viewBox", "0 0 " + w.gw + " " + w.gh);
+      g.style.left = "6px"; g.style.top = "6px"; g.style.marginLeft = "0";
+    }
+  }
 
   // ---------------- 寸法（Web MIDI Browser のツールバー分は画面の高さから自動で引く） ----------------
-  // 縦画面専用：上に正方形の XY（右に HOLD・ALL の細い列）、下にパート 2段×8（上段 1〜8、下段 9〜16）
+  // MFX：上に正方形の XY（右に HOLD・ALL の細い列）、下にパート 2段×8（上段 1〜8、下段 9〜16）
+  // MIX：1パート＝縦 1 列（番号、PAN、IFX、FXE、LVL フェーダー）。左端に項目名の細い列
+  // PART：上にパート選択 2段×8、下に役割ごとのカード 2列×3段
   var TOP = 48, M = 4, G = 6, SIDE_W = 84, PADS_MIN = 170;
+  var MIX_LBL = 30, MIX_GAP = 3, mixColW = 42;
   function layout() {
     var W = window.innerWidth, H = window.innerHeight;
     $("rotate").style.display = W > H ? "flex" : "none";
@@ -217,7 +330,51 @@
       el.style.width = pw + "px"; el.style.height = ph + "px";
       el.style.left = (col * (pw + 4)) + "px"; el.style.top = (row * (ph + 4)) + "px";
     }
-    $("sizeInfo").textContent = "画面 " + W + "×" + H + "pt / XY パッド " + xy + "pt 四方（約 " + (xy * 0.157 / 10).toFixed(1) + "cm）/ パートボタン " + pw + "×" + ph + "pt（約 " + (pw * 0.157 / 10).toFixed(1) + "×" + (ph * 0.157 / 10).toFixed(1) + "cm）";
+    layoutMix(inner, h);
+    layoutPart(inner, h);
+    drawMix();
+    $("sizeInfo").textContent = "画面 " + W + "×" + H + "pt / XY パッド " + xy + "pt 四方（約 " + (xy * 0.157 / 10).toFixed(1) + "cm）/ パートボタン " + pw + "×" + ph + "pt（約 " + (pw * 0.157 / 10).toFixed(1) + "×" + (ph * 0.157 / 10).toFixed(1) + "cm）/ MIX の列幅 " + mixColW + "pt（約 " + (mixColW * 0.157 / 10).toFixed(1) + "cm）";
+  }
+  function layoutMix(inner, h) {
+    var cw = mixColW = Math.floor((inner - MIX_LBL - 16 * MIX_GAP) / 16);
+    var yHead = 0, hHead = 44, yPan = hHead + 6, hPan = cw + 12, yIfx = yPan + hPan + 6, hIfx = 34, yFxe = yIfx + hIfx + 6, hFxe = cw + 12;
+    var yLvl = yFxe + hFxe + 10, hLvl = h - yLvl;
+    var L = [["PAN", "mix", yPan + cw / 2 - 8], ["IFX", "ifx", yIfx + hIfx / 2 - 8], ["FXE", "ifx", yFxe + cw / 2 - 8], ["LVL", "mix", yLvl + 4]];
+    // 基準 70 の高さに「70」と書く（フェーダーの溝と同じ計算）
+    var tH = hLvl - 32 - 10;
+    $("mxl4").style.top = (yLvl + 5 + tH * (1 - LEVEL_REF / 127) - 8) + "px";
+    for (var i = 0; i < L.length; i++) { var lb = $("mxl" + i); lb.style.top = L[i][2] + "px"; }
+    for (var p = 1; p <= 16; p++) {
+      var x = MIX_LBL + MIX_GAP + (p - 1) * (cw + MIX_GAP), hd = $("mxh" + p);
+      hd.style.left = x + "px"; hd.style.top = yHead + "px"; hd.style.width = cw + "px"; hd.style.height = hHead + "px";
+      var m = MIXW[p];
+      placeW(m.pan, x, yPan, cw, hPan);
+      placeW(m.ifx, x, yIfx, cw, hIfx);
+      placeW(m.fxe, x, yFxe, cw, hFxe);
+      placeW(m.lvl, x, yLvl, cw, hLvl);
+    }
+  }
+  function layoutPart(inner, h) {
+    var G2 = 6, pw = Math.floor((inner - 7 * 4) / 8), ph = 40;
+    for (var p = 1; p <= 16; p++) {
+      var el = $("psel" + p), col = (p - 1) % 8, row = p > 8 ? 1 : 0;
+      el.style.left = (col * (pw + 4)) + "px"; el.style.top = (row * (ph + 4)) + "px"; el.style.width = pw + "px"; el.style.height = ph + "px";
+    }
+    var yInfo = 2 * ph + 4 + 8;
+    $("pInfo").style.top = yInfo + "px"; $("pInfo").style.height = "24px"; $("pInfo").style.lineHeight = "24px";
+    var yc = yInfo + 24 + 8, cwid = Math.floor((inner - G2) / 2), ch = Math.floor((h - yc - 2 * G2) / 3);
+    var K = Math.max(40, Math.min(76, Math.floor((ch - 28) / 2) - 16)), kw = K + 26, kh = K + 16 + 18;
+    for (var c = 0; c < PCARDS.length; c++) {
+      var C = PCARDS[c], cx = (c % 2) * (cwid + G2), cy = yc + Math.floor(c / 2) * (ch + G2), cd = $("pc" + c);
+      cd.style.left = cx + "px"; cd.style.top = cy + "px"; cd.style.width = cwid + "px"; cd.style.height = ch + "px";
+      var n = C.knobs.length, top = 28, ky;
+      if (C.graph) {
+        ky = cy + ch - kh - 6;
+        placeW(C.graph, cx + 10, cy + top, cwid - 20, ky - (cy + top) - 6);
+      } else ky = cy + top + Math.floor((ch - top - kh) / 2);
+      var span = cwid - 20, step = span / n;
+      for (var k = 0; k < n; k++) placeW(C.knobs[k], Math.round(cx + 10 + step * k + (step - kw) / 2), ky, kw, kh);
+    }
   }
   window.addEventListener("resize", layout, false);
   window.addEventListener("orientationchange", function () { setTimeout(layout, 300); }, false);
@@ -311,6 +468,219 @@
   onPress($("allOn"), function () { pressFlash($("allOn")); E2.setAllParts("mfxSend", 1); });
   onPress($("allOff"), function () { pressFlash($("allOff")); E2.setAllParts("mfxSend", 0); });
 
+  // ---------------- MIX と PART を組み立てる ----------------
+  var KNOB_TRACK = "M8.69 31.31 A16 16 0 1 1 31.31 31.31";   // −135°〜+135° の弧（下が欠けた円）
+  var MIXW = [null], PCARDS = [];
+  (function () {
+    // MIX：左端に項目名、各パートは縦 1 列
+    var h = "", L = [["PAN", "mix"], ["IFX", "ifx"], ["FXE", "ifx"], ["LVL", "mix"]];
+    for (var i = 0; i < L.length; i++) h += '<div class="mxl" id="mxl' + i + '" style="color:' + GROUP_COLOR[L[i][1]] + '">' + L[i][0] + '</div>';
+    h += '<div class="mxl" id="mxl4" style="color:#ffffff;font-size:14px">' + LEVEL_REF + '</div>';
+    for (var p = 1; p <= 16; p++) {
+      var m = MIXW[p] = {
+        pan: addW({ kind: "knob", part: p, f: "pan", bi: true, g: "mix" }),
+        ifx: addW({ kind: "toggle", part: p, f: "ifxOn", g: "ifx" }),
+        fxe: addW({ kind: "knob", part: p, f: "ifxEdit", g: "ifx" }),
+        lvl: addW({ kind: "fader", part: p, f: "level", g: "mix", ref: LEVEL_REF })
+      };
+      h += '<div class="mxh" id="mxh' + p + '"><span class="n">' + p + '</span><span class="m">MUTE</span></div>';
+      h += wHTML(m.pan) + wHTML(m.ifx) + wHTML(m.fxe) + wHTML(m.lvl);
+    }
+    $("mixBox").innerHTML = h;
+
+    // PART：パート選択と、役割ごとのカード
+    var K = function (f, l, g, o) { var w = { kind: "knob", part: "sel", f: f, g: g, label: l }; for (var k in (o || {})) w[k] = o[k]; return addW(w); };
+    PCARDS = [
+      { t: "FILTER", g: "flt", ty: function (pt) { return pt.filterTypeName; },
+        graph: addW({ kind: "filter", part: "sel", f: ["cutoff", "reso", "filterType"], g: "flt" }),
+        knobs: [K("cutoff", "CUTOFF", "flt"), K("reso", "RESO", "flt")] },
+      { t: "EG", g: "env", graph: addW({ kind: "env", part: "sel", f: ["attack", "decay"], g: "env" }),
+        knobs: [K("attack", "ATTACK", "env"), K("decay", "DECAY", "env")] },
+      { t: "OSC", g: "osc", ty: function (pt) { return "#" + pt.oscType; },
+        knobs: [K("pitch", "PITCH", "osc", { bi: true }), K("glide", "GLIDE", "osc"), K("oscEdit", "EDIT", "osc")] },
+      { t: "MOD", g: "mod", ty: function (pt) { return "#" + pt.modType; },
+        knobs: [K("filterEG", "EG INT", "mod", { bi: true }), K("modDepth", "DEPTH", "mod"), K("modSpeed", "SPEED", "mod")] },
+      { t: "AMP", g: "mix",
+        knobs: [K("level", "LEVEL", "mix", { ref: LEVEL_REF }), K("pan", "PAN", "mix", { bi: true })] },
+      { t: "IFX", g: "ifx", ty: function (pt) { return "#" + pt.ifxType; },
+        knobs: [addW({ kind: "toggle", part: "sel", f: "ifxOn", g: "ifx" }), K("ifxEdit", "EDIT", "ifx")] }
+    ];
+    h = "";
+    for (p = 1; p <= 16; p++) h += '<div class="psel" id="psel' + p + '" data-p="' + p + '">' + p + '</div>';
+    h += '<div id="pInfo"></div>';
+    for (var c = 0; c < PCARDS.length; c++) {
+      var C = PCARDS[c];
+      h += '<div class="card" id="pc' + c + '"><div class="ct" style="color:' + GROUP_COLOR[C.g] + '">' + C.t + '<span class="ty" id="pct' + c + '"></span></div></div>';
+      if (C.graph) h += wHTML(C.graph);
+      for (var k = 0; k < C.knobs.length; k++) h += wHTML(C.knobs[k], C.knobs[k].label, "big");
+    }
+    $("partBox").innerHTML = h;
+    for (p = 1; p <= 16; p++) (function (el, p) {
+      onPress(el, function () { selPart = p; try { localStorage.setItem("e2ui:part", String(p)); } catch (e) {} drawPart(); });
+    })($("psel" + p), p);
+  })();
+
+  // つまみ（viewBox 40×40、中心 20,20、半径 16）。角度は真上 = 0、時計回りが +、範囲 −135°〜+135°
+  function kpt(deg, r) { var t = deg * Math.PI / 180; return [(20 + r * Math.sin(t)).toFixed(2), (20 - r * Math.cos(t)).toFixed(2)]; }
+  function karc(a0, a1) {
+    if (Math.abs(a1 - a0) < 0.5) return "";
+    var p0 = kpt(a0, 16), p1 = kpt(a1, 16);
+    return "M" + p0[0] + " " + p0[1] + " A16 16 0 " + (Math.abs(a1 - a0) > 180 ? 1 : 0) + " " + (a1 > a0 ? 1 : 0) + " " + p1[0] + " " + p1[1];
+  }
+  // フィルターの絵：横軸＝周波数（対数、約 8 オクターブ）、縦軸＝音量。カットオフで曲がり角、レゾナンスで山の高さ
+  //   形の目安（2 次のフィルターの式）。本体の実際の特性とは同じではなく、雰囲気を見るためのもの
+  function filterKind(t) { return t === 0 ? "off" : (t <= 6 ? "lp" : (t <= 11 ? "hp" : "bp")); }
+  function filterPath(W, H, type, cut, res) {
+    var y0 = Math.round(H * 0.42), kind = filterKind(type), pts = [];
+    var xc = W * (0.05 + 0.9 * cut / 127), Q = 0.6 + res / 127 * 6;
+    for (var x = 0; x <= W; x += 2) {
+      var y;
+      if (kind === "off") y = y0;
+      else {
+        var w = Math.pow(2, (x - xc) / W * 8), den = Math.sqrt((1 - w * w) * (1 - w * w) + (w / Q) * (w / Q)), g;
+        g = kind === "lp" ? 1 / den : (kind === "hp" ? w * w / den : (w / Q) / den);
+        var db = 20 * Math.log(Math.max(g, 1e-6)) / Math.LN10;
+        y = clamp(y0 - db * (y0 - 2) / 18, 1, H);
+      }
+      pts.push(x.toFixed(1) + " " + y.toFixed(1));
+    }
+    return "M" + pts.join(" L");
+  }
+  // EG の絵：アタックで立ち上がり、ディケイで下がる形（時間の長さは目安）
+  function envPath(W, H, atk, dcy) {
+    var b = H - 2, top = 3;
+    var ax = 2 + atk / 127 * W * 0.42, dw = 3 + dcy / 127 * W * 0.52, ex = ax + dw;
+    return "M2 " + b + " C" + (2 + (ax - 2) * 0.35).toFixed(1) + " " + (top + (b - top) * 0.15).toFixed(1) + " " + (ax - (ax - 2) * 0.1).toFixed(1) + " " + top + " " + ax.toFixed(1) + " " + top +
+           " C" + (ax + dw * 0.15).toFixed(1) + " " + (b - (b - top) * 0.2).toFixed(1) + " " + (ax + dw * 0.45).toFixed(1) + " " + b + " " + ex.toFixed(1) + " " + b + " L" + W + " " + b;
+  }
+  function fmtVal(w, v) {
+    if (w.f === "pan") return v === 0 ? "C" : (v < 0 ? "L" + (-v) : "R" + v);
+    if (w.bi) return v > 0 ? "+" + v : String(v);
+    return String(v);
+  }
+  function drawW(w) {
+    var s = E2.state, el = $(w.id);
+    if (!s.loaded) { if ($(w.id + "v")) $(w.id + "v").textContent = w.kind === "toggle" ? "-" : ""; return; }
+    var pt = s.parts[wPart(w)], v = pt[wFields(w)[0]], act = drags[w.id] ? " act" : "";
+    if (w.kind === "toggle") {
+      el.className = el.className.replace(/ on| act/g, "") + (v ? " on" : "") + act;
+      $(w.id + "v").textContent = v ? "ON" : "OFF";
+    } else if (w.kind === "knob") {
+      var a0, a1;
+      if (w.bi) { a0 = 0; a1 = clamp(v, -64, 64) / 64 * 135; }          // 真上から左右へ
+      else { a0 = -135; a1 = -135 + clamp(v, 0, 127) / 127 * 270; }      // 左下から時計回り
+      $(w.id + "a").setAttribute("d", karc(a0, a1));
+      var q0 = kpt(a1, 7), q1 = kpt(a1, 16), ind = $(w.id + "i");
+      ind.setAttribute("x1", q0[0]); ind.setAttribute("y1", q0[1]); ind.setAttribute("x2", q1[0]); ind.setAttribute("y2", q1[1]);
+      $(w.id + "v").textContent = fmtVal(w, v) + (w.ref !== undefined && v !== w.ref ? "（" + (v > w.ref ? "+" : "") + (v - w.ref) + "）" : "");
+    } else if (w.kind === "fader") {
+      var r = clamp(v, 0, 127) / 127;
+      $(w.id + "f").style.height = (r * 100) + "%";
+      var cap = $(w.id + "c");
+      cap.style.top = (w.trackTop + w.trackH * (1 - r)) + "px";
+      cap.className = "fcap" + (w.ref !== undefined && v === w.ref ? " ref" : "");
+      $(w.id + "v").textContent = v;
+      $(w.id + "d").textContent = w.ref !== undefined && v !== w.ref ? (v > w.ref ? "+" : "") + (v - w.ref) : "";
+    } else if (w.gw) {
+      var d = w.kind === "filter" ? filterPath(w.gw, w.gh, pt.filterType, pt.cutoff, pt.reso) : envPath(w.gw, w.gh, pt.attack, pt.decay);
+      var by = w.kind === "filter" ? Math.round(w.gh * 0.42) : w.gh - 2;
+      $(w.id + "a").setAttribute("d", d);
+      $(w.id + "f").setAttribute("d", d + " L" + w.gw + " " + w.gh + " L0 " + w.gh + " Z");
+      $(w.id + "b").setAttribute("d", "M0 " + by + " L" + w.gw + " " + by);
+    }
+    if (el.className.indexOf(" act") >= 0 && !act) el.className = el.className.replace(/ act/g, "");
+  }
+  // ある 1 パートの 1 項目が変わったとき：関係する部品だけ描き直す
+  function drawMixCell(p, f) {
+    for (var i = 0; i < WL.length; i++) { var w = WL[i]; if (wPart(w) === p && wFields(w).indexOf(f) >= 0) drawW(w); }
+  }
+  function drawPart() {
+    var s = E2.state, pt = s.loaded ? s.parts[selPart] : null;
+    for (var p = 1; p <= 16; p++) $("psel" + p).className = "psel" + (p === selPart ? " on" : "") + (s.loaded && s.parts[p].mute ? " muted" : "");
+    $("pInfo").innerHTML = "<b>PART " + selPart + "</b>" + (pt ? (VOICES[pt.voiceAssign] || ("V" + pt.voiceAssign)) + (pt.mute ? '<span class="mt">MUTE</span>' : "") : "");
+    for (var c = 0; c < PCARDS.length; c++) $("pct" + c).textContent = pt && PCARDS[c].ty ? PCARDS[c].ty(pt) : "";
+    for (var i = 0; i < WL.length; i++) if (WL[i].part === "sel") drawW(WL[i]);
+    $("partBox").className = (s.loaded && s.source === "未読込") ? "stale" : "";
+  }
+  function drawMix() {
+    var s = E2.state;
+    for (var p = 1; p <= 16; p++) {
+      var mu = s.loaded && s.parts[p].mute, m = MIXW[p];
+      $("mxh" + p).className = "mxh" + (mu ? " muted" : "");
+      for (var k in m) { var el = $(m[k].id); el.className = el.className.replace(/ muted/g, "") + (mu ? " muted" : ""); drawW(m[k]); }
+    }
+    $("mixBox").className = (s.loaded && s.source === "未読込") ? "stale" : "";
+    drawPart();
+  }
+
+  // 操作：つまみ・フェーダーは指を上下に動かした分だけ変わる（相対。触った位置には飛ばない）、ON/OFF はタップ。絵は表示だけ
+  //   指ごとに 1 つずつ操作できる（複数の指で同時に別の部品も動かせる）
+  var drags = {};     // key = 部品の id → { w, p, touch, lastY, v0, b0 }
+  function mixUsable() { var s = E2.state; return s.loaded && s.source !== "未読込"; }
+  function widgetOf(target) {
+    while (target && target !== document.body) { if (target.getAttribute && target.getAttribute("data-w")) return WL[parseInt(target.getAttribute("data-w"), 10)]; target = target.parentNode; }
+    return null;
+  }
+  function mixStart(w, y, touchKey) {
+    if (w.kind === "filter" || w.kind === "env") return;
+    var el = $(w.id), p = wPart(w);
+    if (!mixUsable()) { el.style.opacity = ".5"; setTimeout(function () { el.style.opacity = ""; }, 150); return; }
+    if (w.kind === "toggle") { E2.setPart(p, w.f, E2.state.parts[p][w.f] ? 0 : 1); return; }
+    for (var k in drags) if (drags[k].touch === touchKey || k === w.id) return;
+    drags[w.id] = { w: w, p: p, touch: touchKey, lastY: y, v0: E2.state.parts[p][w.f], b0: y };
+    el.className += " act";
+  }
+  function mixMove(touchKey, y) {
+    for (var k in drags) {
+      var d = drags[k];
+      if (d.touch !== touchKey) continue;
+      d.lastY = y;
+      var bi = E2.FIELDS[d.w.f].kind === "s", lo = bi ? -64 : 0, hi = bi ? 63 : 127;
+      var sens = d.w.kind === "fader" ? 127 / Math.max(60, d.w.trackH) : KNOB_SENS;   // フェーダーはつまみを指で動かしている感覚
+      var v = clamp(Math.round(d.v0 + (d.b0 - y) * sens), lo, hi);
+      if (v !== E2.state.parts[d.p][d.w.f]) E2.setPart(d.p, d.w.f, v);
+    }
+  }
+  function mixEnd(touchKey) {
+    for (var k in drags) if (drags[k].touch === touchKey) {
+      var el = $(k); delete drags[k];
+      el.className = el.className.replace(/ act/g, "");
+    }
+  }
+  // 操作中に値が外から変わったら（本体のつまみ・パターン切替）、そこを新しい基準にする
+  function rebaseDrags(p, f, v) {
+    for (var k in drags) {
+      var d = drags[k];
+      if (p !== null && d.p !== p) continue;
+      if (f !== null && d.w.f !== f) continue;
+      d.v0 = v !== null ? v : E2.state.parts[d.p][d.w.f];
+      d.b0 = d.lastY;
+    }
+  }
+  function hookDrags(box) {
+    box.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i], w = widgetOf(t.target);
+        if (w) mixStart(w, t.clientY, "t" + t.identifier);
+      }
+    }, false);
+    box.addEventListener("touchmove", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) mixMove("t" + e.changedTouches[i].identifier, e.changedTouches[i].clientY);
+    }, false);
+    function end(e) { for (var i = 0; i < e.changedTouches.length; i++) mixEnd("t" + e.changedTouches[i].identifier); }
+    box.addEventListener("touchend", end, false);
+    box.addEventListener("touchcancel", end, false);
+    // パソコンで確認する用（マウス）
+    box.addEventListener("mousedown", function (e) { var w = widgetOf(e.target); if (w) { mouseKey = true; mixStart(w, e.clientY, "mouse"); } }, false);
+  }
+  var mouseKey = false;
+  window.addEventListener("mousemove", function (e) { if (mouseKey) mixMove("mouse", e.clientY); }, false);
+  window.addEventListener("mouseup", function () { if (mouseKey) { mouseKey = false; mixEnd("mouse"); } }, false);
+  hookDrags($("mixBox"));
+  hookDrags($("partBox"));
+
   // ---------------- 上のバー ----------------
   function drawTop() {
     var s = E2.state, g = s.global || {}, st = E2.status;
@@ -361,7 +731,7 @@
       h += "</tr>";
     }
     $("tbl").innerHTML = h;
-    var btns = document.querySelectorAll(".tg");
+    var btns = document.querySelectorAll(".setup .tg");
     for (var i = 0; i < btns.length; i++) {
       btns[i].onclick = function () {
         if (!E2.state.loaded) return;
@@ -418,9 +788,13 @@
       var g = E2.state.global;
       if (!touching && !hold && typeof g.padX === "number") { padX = g.padX; padY = g.padY; }
       $("xyType").textContent = g.mfxTypeName ? g.mfxTypeName.toUpperCase() : "---";
-      drawXY(); drawPads(); drawTop(); renderTable();
+      // 表示が入れ替わったら、MIX で操作中の指は基準を取り直す
+      if (E2.state.loaded) rebaseDrags(null, null, null);
+      drawXY(); drawPads(); drawMix(); drawTop(); renderTable();
     } else if (type === "part") {
       if (d.field === "mfxSend") drawPad(d.part);
+      if (d.source === "e2") rebaseDrags(d.part, d.field, d.value);   // 本体のつまみが動いたら、操作中の指はそこを基準に続ける
+      drawMixCell(d.part, d.field);
       setCell(d.part, d.field, true);
     } else if (type === "verify") {
       var t = new Date().toLocaleTimeString();
@@ -440,7 +814,7 @@
       $("midiLog").textContent = midiLines.join("\n");
     }
   });
-  // SETUP を開いたときに記録をまとめて表示（LIVE 中の描画を減らすため）
+  // SETUP を開いたときに記録をまとめて表示（MFX・MIX 中の描画を減らすため）
   onPress(document.querySelector('.tab[data-page="setup"]'), function () { $("midiLog").textContent = midiLines.join("\n"); });
 
   // ---------------- SETUP / PATTERN のボタン ----------------
@@ -460,6 +834,11 @@
     s.push("先読み: " + $("fetchInfo").textContent);
     s.push("XY: X " + padX + " Y " + padY + " HOLD " + (hold ? "ON" : "OFF"));
     if (st.loaded) s.push("全体: パターン " + (st.program === null ? "?" : st.program + 1) + " " + st.source + " " + st.global.name + " BPM " + st.global.tempo + " / " + $("gLoaded").textContent);
+    if (st.loaded) {
+      var vs = [];
+      for (var p = 1; p <= 16; p++) vs.push(p + ":" + st.parts[p].voiceAssign);
+      s.push("ボイス（パート:値）: " + vs.join(" "));
+    }
     s.push("--- 照合 ---");
     s.push(verifyLines.slice(0, 30).join("\n") || "なし");
     s.push("--- MIDI ---");
@@ -475,7 +854,7 @@
   try { var sp = localStorage.getItem("e2ui:page"); if (sp && PAGES.indexOf(sp) >= 0) startPage = sp; } catch (e) {}
   showPage(startPage);
   layout();
-  drawXY(); drawHold(); drawTop();
+  drawXY(); drawHold(); drawTop(); drawMix();
   E2.start();
 })();
 </script>
