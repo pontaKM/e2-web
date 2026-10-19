@@ -65,7 +65,7 @@
   <h2>保存パターンの先読み（ライブ前に、停止中に行ってください）</h2>
   <div class="row">
     パターン <input type="number" id="fFrom" min="1" max="250" value="1"> 〜 <input type="number" id="fTo" min="1" max="250" value="250">
-    <button class="main" id="btnFetch">先読み開始</button><button id="btnFetchStop">中止</button>
+    <button class="main" id="btnFetch">先読み開始</button><button id="btnFetchStop">中止</button><button id="btnClearSaved">iPad の保存を消す</button>
   </div>
   <div class="dim" id="fetchInfo">先読み済み 0 パターン。再生中にパターンを切り替えたとき、先読み済みのパターンだけ表示が切り替わります。</div>
 </div>
@@ -88,7 +88,7 @@
   <textarea id="summary" readonly></textarea>
 </div>
 
-<script src="e2core.js?v=6"></script>
+<script src="e2core.js?v=7"></script>
 <script>
 (function () {
   function $(id) { return document.getElementById(id); }
@@ -178,7 +178,8 @@
       $("ports").textContent = "入力：" + st.inNames.join(" / ") + "　出力：" + st.outName;
       $("play").textContent = st.playing === true ? "▶ 再生中" : (st.playing === false ? "■ 停止中" : "再生状態 不明");
     } else if (type === "cache") {
-      $("fetchInfo").textContent = "先読み済み " + d.count + " パターン（" + d.done + "/" + d.total + "）" + (d.name ? "　最後に読んだもの：" + (d.index + 1) + " " + d.name : "");
+      if (d.total) $("fetchInfo").textContent = "先読み済み " + d.count + " パターン（" + d.done + "/" + d.total + "、" + (d.elapsed || 0).toFixed(1) + " 秒）" + (d.name ? "　最後に読んだもの：" + (d.index + 1) + " " + d.name : "") + (d.saveOk === false ? "　※ iPad への保存は不可" : "");
+      else $("fetchInfo").textContent = "先読み済み " + d.count + " パターン" + (d.saved && d.saved.count ? "（iPad の保存から復元。最終更新 " + (d.saved.at ? d.saved.at.toLocaleString() : "不明") + "）" : "");
     } else if (type === "loaded") {
       renderAll();
     } else if (type === "part") {
@@ -215,6 +216,7 @@
     E2.fetchStored(a - 1, b - 1);
   };
   $("btnFetchStop").onclick = function () { E2.cancelFetch(); };
+  $("btnClearSaved").onclick = function () { if (confirm("先読みデータと iPad の保存を消しますか？")) E2.clearSaved(); };
   // 予約中は、切替までの残り秒数を表示
   setInterval(function () {
     var st = E2.status;
@@ -225,7 +227,7 @@
   }, 200);
   $("btnSummary").onclick = function () {
     var s = [], st = E2.state;
-    s.push("[e2 土台テスト / 画面 base-v6 / " + E2.version + "]");
+    s.push("[e2 土台テスト / 画面 base-v7 / " + E2.version + "]");
     s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
     s.push("先読み: " + $("fetchInfo").textContent);
     if (st.loaded) s.push("全体: パターン " + (st.program === null ? "?" : st.program + 1) + " " + st.source + " " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
@@ -237,7 +239,7 @@
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
 
-  $("ver").textContent = "画面 base-v6 / " + E2.version;
+  $("ver").textContent = "画面 base-v7 / " + E2.version;
   buildTable();
   E2.start();
 })();
