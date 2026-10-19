@@ -3,510 +3,204 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>e2 MIDI 確認ページ</title>
+<title>e2 土台テスト</title>
 <style>
-  body { margin:0; padding:12px; background:#1b1d21; color:#e8e8e8; font-family:-apple-system, "Hiragino Sans", sans-serif; font-size:16px; }
-  h1 { font-size:20px; margin:4px 0 12px; }
-  h2 { font-size:17px; margin:0 0 8px; color:#9fd0ff; }
-  .box { background:#262a30; border-radius:10px; padding:12px; margin-bottom:12px; }
-  .row { margin:6px 0; }
-  select, button, input[type=number] { font-size:17px; padding:10px 12px; border-radius:8px; border:1px solid #555; background:#33383f; color:#fff; }
-  button { min-width:120px; margin:4px 6px 4px 0; }
-  button.main { background:#2d6cdf; border-color:#2d6cdf; font-weight:bold; }
-  label { margin-right:14px; display:inline-block; padding:6px 0; }
-  input[type=radio], input[type=checkbox] { transform:scale(1.4); margin-right:8px; }
-  .ok { color:#6be38a; font-weight:bold; }
-  .ng { color:#ff7a7a; font-weight:bold; }
-  .dim { color:#999; font-size:14px; }
-  pre, .log { background:#111316; border-radius:8px; padding:8px; font-family:Menlo, monospace; font-size:13px; white-space:pre-wrap; word-break:break-all; margin:6px 0 0; }
-  .log { height:160px; overflow-y:auto; }
-  table { border-collapse:collapse; width:100%; font-size:15px; }
-  td { padding:5px 4px; border-bottom:1px solid #3a3f46; }
-  td.k { color:#aaa; width:42%; }
-  textarea { width:100%; height:150px; box-sizing:border-box; background:#111316; color:#e8e8e8; border-radius:8px; border:1px solid #444; font-family:Menlo, monospace; font-size:12px; }
-  .glob { font-size:17px; line-height:1.7; }
-  .glob b { color:#ffd479; }
+  body { margin:0; padding:10px; background:#1b1d21; color:#e8e8e8; font-family:-apple-system, "Hiragino Sans", sans-serif; font-size:15px; }
+  .bar { display:flex; flex-wrap:wrap; align-items:center; background:#262a30; border-radius:10px; padding:8px 10px; margin-bottom:10px; }
+  .bar > * { margin-right:14px; }
+  .dot { display:inline-block; width:12px; height:12px; border-radius:6px; background:#777; margin-right:6px; vertical-align:middle; }
+  .dot.ok { background:#4cd964; } .dot.busy { background:#ffcc00; } .dot.ng { background:#ff3b30; }
+  .big { font-size:18px; } .big b { color:#ffd479; }
+  .box { background:#262a30; border-radius:10px; padding:10px; margin-bottom:10px; }
+  h2 { font-size:16px; margin:0 0 8px; color:#9fd0ff; }
+  button { font-size:16px; padding:9px 12px; border-radius:8px; border:1px solid #555; background:#33383f; color:#fff; margin:2px 6px 2px 0; }
+  button.main { background:#2d6cdf; border-color:#2d6cdf; }
   .scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  table.parts { font-size:13px; text-align:center; white-space:nowrap; }
-  table.parts th { background:#1f2328; color:#9fd0ff; font-weight:normal; padding:5px 3px; border-bottom:1px solid #555; }
-  table.parts td { padding:5px 3px; }
-  table.parts td.p { color:#ffd479; font-weight:bold; }
-  table.parts tr.muted td { color:#777; }
-  .on { color:#6be38a; font-weight:bold; }
-  .cc { color:#ffa94d; font-size:11px; display:block; }
-  details summary { cursor:pointer; color:#9fd0ff; font-size:17px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; text-align:center; white-space:nowrap; }
+  th { color:#9fd0ff; font-weight:normal; padding:4px 3px; border-bottom:1px solid #555; }
+  td { padding:3px; border-bottom:1px solid #3a3f46; }
+  td.p { color:#ffd479; font-weight:bold; font-size:15px; }
+  tr.muted td { color:#6c7076; }
+  .tg { min-width:54px; padding:8px 4px; margin:0; font-size:14px; }
+  .tg.on { background:#e0663a; border-color:#e0663a; font-weight:bold; }
+  .flash { background:#3d4f2a; }
+  .dim { color:#999; font-size:13px; }
+  pre { background:#111316; border-radius:8px; padding:8px; font-family:Menlo, monospace; font-size:12px; white-space:pre-wrap; word-break:break-all; margin:6px 0 0; max-height:180px; overflow-y:auto; }
+  .ok { color:#6be38a; } .ng { color:#ff7a7a; }
+  label { display:inline-block; padding:4px 0; margin-right:12px; }
+  input[type=checkbox] { transform:scale(1.3); margin-right:6px; }
+  textarea { width:100%; height:120px; box-sizing:border-box; background:#111316; color:#e8e8e8; border-radius:8px; border:1px solid #444; font-family:Menlo, monospace; font-size:11px; }
 </style>
 </head>
 <body>
-<h1>e2 MIDI 確認ページ <span class="dim">v2</span></h1>
 
-<div class="box">
-  <h2>1. MIDI ポート</h2>
-  <div id="status" class="row">起動中…</div>
-  <div class="row">入力：<span id="inList" class="dim">-</span>　出力：<select id="outSel"></select></div>
+<div class="bar">
+  <span><span class="dot" id="dot"></span><span id="conn">起動中</span></span>
+  <span class="big">パターン <b id="gName">-</b></span>
+  <span class="big">BPM <b id="gTempo">-</b></span>
+  <span class="big">MFX <b id="gMfx">-</b></span>
+  <span class="dim" id="gLoaded">-</span>
+  <button class="main" id="btnReload">読み直す</button>
 </div>
 
 <div class="box">
-  <h2>2. パターンの値</h2>
+  <h2>16パートの状態（本体のつまみを回すと即座に変わります）</h2>
   <div class="row">
-    <button class="main" id="btnDump">読み込む（ダンプ要求）</button>
-    <label><input type="checkbox" id="autoReq" checked>パターン切替で自動読み込み</label>
+    <button id="mfxAllOn">MFX Send 全オン</button>
+    <button id="mfxAllOff">MFX Send 全オフ</button>
+    <span class="dim">表の MFX / IFX ボタンを押すと e2 に送信します</span>
   </div>
-  <div class="row dim" id="dStateTop">まだ読み込んでいません</div>
-  <div class="glob" id="glob">-</div>
-  <div class="scroll"><table class="parts" id="partsTable"></table></div>
-  <div class="row dim">オレンジの小さい数字は、読み込み後に本体から CC で届いた値です（ダンプの値と CC の値の対応を確かめるため）。灰色の行はミュート中のパートです。</div>
-  <div class="scroll" style="margin-top:10px;"><table class="parts" id="typesTable"></table></div>
-  <div class="row dim">種類名は標準 e2 の表です。hacktribe で番号がずれていないか、本体表示と見比べてください。</div>
+  <div class="scroll"><table id="tbl"></table></div>
+  <div class="dim">灰色の行はミュート中のパートです。変わったセルは一瞬緑になります。</div>
 </div>
 
 <div class="box">
-  <h2>3. 前回の読み込みとの差分（位置の確認用）</h2>
-  <div class="dim">本体で1か所だけ変えてから「読み込む」を押すと、変わったバイトの位置と、資料上の項目名が出ます。</div>
-  <pre id="diff">-</pre>
+  <h2>照合（予測した値と、読み直した実際の値の比較）</h2>
+  <label><input type="checkbox" id="optVerify" checked>操作が止まって 1.5 秒後に読み直して照合する</label>
+  <label><input type="checkbox" id="optAuto" checked>パターン切替で読み直す</label>
+  <pre id="verifyLog">まだ照合していません</pre>
 </div>
 
 <div class="box">
-  <h2>4. 受信した MIDI</h2>
-  <div class="row" id="lastCC" style="font-size:20px;">-</div>
-  <div class="log" id="ccLog"></div>
+  <h2>MIDI の記録</h2>
+  <div class="dim" id="ports">-</div>
+  <pre id="midiLog"></pre>
 </div>
 
 <div class="box">
-<details>
-  <summary>5. 通信の詳細・設定</summary>
-  <div class="row">
-    製品ID：
-    <label><input type="radio" name="pid" value="24" checked>24（hacktribe）</label>
-    <label><input type="radio" name="pid" value="23">23（標準 e2）</label>
-  </div>
-  <div class="row">グローバル ch：<input type="number" id="gch" min="1" max="16" value="1" style="width:70px;"></div>
-  <div class="row">
-    <button id="btnTestOn">送信テスト ch1 MFX Send On</button>
-    <button id="btnTestOff">ch1 MFX Send Off</button>
-  </div>
-  <table id="dumpTable">
-    <tr><td class="k">状態</td><td id="dState">-</td></tr>
-    <tr><td class="k">送信したメッセージ</td><td id="dSent">-</td></tr>
-    <tr><td class="k">受信バイト数（F0〜F7）</td><td id="dBytes">-</td></tr>
-    <tr><td class="k">分割されて届いた回数</td><td id="dChunks">-</td></tr>
-    <tr><td class="k">最初の応答までの時間</td><td id="dFirst">-</td></tr>
-    <tr><td class="k">受信完了までの時間</td><td id="dTime">-</td></tr>
-    <tr><td class="k">F0〜F7 がそろったか</td><td id="dComplete">-</td></tr>
-    <tr><td class="k">応答の種類</td><td id="dFunc">-</td></tr>
-    <tr><td class="k">デコード後のサイズ</td><td id="dDecoded">-</td></tr>
-  </table>
-  <div class="row dim">デコード後の先頭 64 バイト（16進と文字）</div>
-  <pre id="dHead">-</pre>
-</details>
-</div>
-
-<div class="box">
-  <h2>6. 結果まとめ（Claude に貼り付ける用）</h2>
-  <div class="row"><button id="btnSummary">まとめを作る</button><button id="btnSelect">全選択</button></div>
+  <h2>結果まとめ（Claude に貼り付ける用）</h2>
+  <button id="btnSummary">まとめを作る</button><button id="btnSelect">全選択</button>
   <textarea id="summary" readonly></textarea>
-  <div class="dim">「全選択」→ 長押しで「コピー」して、チャットに貼り付けてください。</div>
 </div>
 
+<script src="e2core.js?v=1"></script>
 <script>
 (function () {
-  var midi = null;
-  var inputs = [];
-  var outputs = [];
-  var ccLines = [];
-  var ccCount = 0;
-  var otherCount = 0;
-
-  var CC_NAMES = {
-    7:"Level", 10:"Pan", 71:"Resonance", 72:"EG Decay/Release", 73:"EG Attack",
-    74:"Cutoff", 80:"Osc Pitch", 81:"Glide", 82:"Osc Edit", 83:"Filter EG Int",
-    85:"Mod Depth", 86:"Mod Speed", 87:"IFX Edit", 104:"IFX On/Off",
-    105:"MFX Send", 102:"Pad X", 103:"Pad Y", 106:"Pad On/Off"
-  };
-
-  // ---- パターンデータの構造（elecmidi の elecmidi.h より。ダンプ＝.e2pat の 0x100 以降）----
-  var PART_BASE = 0x800, PART_LEN = 0x330;
-  // パート内オフセット
-  var PF = {
-    lastStep:0x00, mute:0x01, voiceAssign:0x02, motionSeq:0x03, padVelocity:0x04, scaleMode:0x05, partPriority:0x06,
-    oscTypeL:0x08, oscTypeH:0x09, oscEdit:0x0B, filterType:0x0C, cutoff:0x0D, reso:0x0E, filterEG:0x0F,
-    modType:0x10, modSpeed:0x11, modDepth:0x12, attack:0x14, decay:0x15,
-    level:0x18, pan:0x19, ampEG:0x1A, mfxSend:0x1B, grooveType:0x1C, grooveDepth:0x1D,
-    ifxOn:0x20, ifxType:0x21, ifxEdit:0x22, pitch:0x24, glide:0x25
-  };
-  var PF_NAME = {};
-  for (var k in PF) PF_NAME[PF[k]] = k;
-  // 全体
-  var GF = { 0x22:"tempo(下位)", 0x23:"tempo(上位)", 0x24:"swing", 0x25:"length", 0x26:"beat", 0x27:"key", 0x28:"scale",
-             0x29:"chordset", 0x2A:"playlevel", 0x3D:"MFX type", 0x3E:"MFX pad X", 0x3F:"MFX pad Y", 0x41:"MFX Hold" };
-
-  // 一覧の列：[見出し, フィールド, 符号付きか, 対応する CC]
-  var COLS = [
-    ["Lvl","level",false,7], ["Pan","pan",true,10], ["Cut","cutoff",false,74], ["Res","reso",false,71],
-    ["EGi","filterEG",true,83], ["Atk","attack",false,73], ["Dcy","decay",false,72],
-    ["Ptch","pitch",true,80], ["Gld","glide",false,81], ["OscE","oscEdit",false,82],
-    ["ModD","modDepth",false,85], ["ModS","modSpeed",false,86],
-    ["MFX","mfxSend","onoff",105], ["IFX","ifxOn","onoff",104], ["IFXE","ifxEdit",false,87]
-  ];
-  var CC_TO_FIELD = {};
-  for (var c = 0; c < COLS.length; c++) CC_TO_FIELD[COLS[c][3]] = COLS[c][1];
-
-  var MFX_TYPES = ['Mod Delay','Tape Delay','High Pass Delay','Hall Reverb','Room Reverb','Wet Reverb','Looper','Pitch Looper','Step Shifter','Slicer','Jag Filter','Grain Shifter','Vinyl Break','Seq Reverse','Seq Doubler','Odd Stepper','Even Stepper','Low Pass Filter','High Pass Filter','Band Plus Filter','Touch Wah','Tube EQ','Decimator','Distortion','Compressor','Limiter','Chorus','XY Flanger','LFO Flanger','XY Phaser','LFO Phaser','Auto Pan'];
-  var IFX_TYPES = ['Punch','Overdrive','Distortion','Decimator','Bit Crusher','Ring Modulator','Sustainer','Limiter','Low EQ','Mid EQ','High EQ','Radio EQ','Exciter','Low Pass Filter','High Pass Filter','Band Plus Filter','Talk Filter','Delay 1/4','Delay 3/16','Delay 1/8','Delay 1/16','Roller 1/32','One Delay','Short Delay','Ring Delay 1','Ring Delay 2','Chorus','Flanger LFO','Flanger +','Flanger -','Phaser LFO 1','Phaser LFO 2','Phaser Manual','Tremolo','Off Beater','Pumper','Repeater','Slicer'];
-  var FILTER_TYPES = ['OFF','electribe LPF','MS20 LPF','MG LPF','P5 LPF','OB LPF','Acid LPF','electribe HPF','MS20 HPF','P5 HPF','OB HPF','Acid HPF','electribe BPF','MS20 BPF','P5 BPF','OB BPF','Acid BPF'];
-  var MOD_TYPES = ['EG+ Filter','EG+ Pitch','EG+ OSC','EG+ Level','EG+ Pan','EG+ IFX','EG+ BPM Filter','EG+ BPM Pitch','EG+ BPM OSC','EG+ BPM Level','EG+ BPM Pan','EG+ BPM IFX','EG- Filter','EG- Pitch','EG- OSC','EG- Level','EG- Pan','EG- IFX','EG- BPM Filter','EG- BPM Pitch','EG- BPM OSC','EG- BPM Level','EG- BPM Pan','EG- BPM IFX','LFOTri Filter','LFOTri Pitch','LFOTri OSC','LFOTri Level','LFOTri Pan','LFOTri IFX','LFOTriB Filter','LFOTriB Pitch','LFOTriB OSC','LFOTriB Level','LFOTriB Pan','LFOTriB IFX','SawUpB Filter','SawUpB Pitch','SawUpB OSC','SawUpB Level','SawUpB Pan','SawUpB IFX','SawDwnB Filter','SawDwnB Pitch','SawDwnB OSC','SawDwnB Level','SawDwnB Pan','SawDwnB IFX','SquUpB Filter','SquUpB Pitch','SquUpB OSC','SquUpB Level','SquUpB Pan','SquUpB IFX','SquDwnB Filter','SquDwnB Pitch','SquDwnB OSC','SquDwnB Level','SquDwnB Pan','SquDwnB IFX','S&HBPM Filter','S&HBPM Pitch','S&HBPM OSC','S&HBPM Level','S&HBPM Pan','S&HBPM IFX','Random Filter','Random Pitch','Random OSC','Random Level','Random Pan','Random IFX'];
-  var VOICE_TYPES = ['Mono1','Mono2','Poly1','Poly2'];
-
-  var pat = null;      // 最新のデコード済みデータ
-  var prevPat = null;  // 1つ前
-  var ccSeen = {};     // 読み込み後に届いた CC  key: "パート:フィールド"
-  var lastDiff = "";
-
   function $(id) { return document.getElementById(id); }
-  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
-  function hex2(n) { var s = n.toString(16).toUpperCase(); return s.length < 2 ? "0" + s : s; }
-  function hex4(n) { var s = n.toString(16).toUpperCase(); while (s.length < 4) s = "0" + s; return s; }
-  function hexArr(a, max) {
-    var out = [], n = Math.min(a.length, max || a.length);
-    for (var i = 0; i < n; i++) out.push(hex2(a[i]));
-    if (a.length > n) out.push("…");
-    return out.join(" ");
-  }
-  function sbyte(b) { return b > 127 ? b - 256 : b; }
-  function tbl(t, i) { return (i >= 0 && i < t.length) ? t[i] : "#" + i; }
-  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
-  function toList(m) {
-    var a = [];
-    if (!m) return a;
-    if (typeof m === "function") m = m();
-    if (m.forEach) { m.forEach(function (p) { a.push(p); }); return a; }
-    if (m.length !== undefined) { for (var i = 0; i < m.length; i++) a.push(m[i]); }
-    return a;
-  }
+  if (!window.E2) { $("conn").textContent = "e2core.js を読み込めません（同じ場所にアップロードされているか確認してください）"; $("dot").className = "dot ng"; return; }
 
-  // ---------- 起動 ----------
-  if (!navigator.requestMIDIAccess) {
-    $("status").innerHTML = '<span class="ng">このブラウザは Web MIDI に対応していません。Web MIDI Browser アプリで開いてください。</span>';
-    return;
-  }
-  navigator.requestMIDIAccess({ sysex: true }).then(function (access) {
-    midi = access;
-    $("status").innerHTML = '<span class="ok">Web MIDI 使用可能（SysEx 許可あり）</span>';
-    refreshPorts();
-    midi.onstatechange = function () { refreshPorts(); };
-    // 起動したら一度読み込む
-    setTimeout(function () { if (currentOut()) requestDump(); }, 500);
-  }, function (err) {
-    $("status").innerHTML = '<span class="ng">MIDI を使えませんでした：' + err + '</span><br>Web MIDI Browser の設定で SysEx を有効にしてから、ページを再読み込みしてください。';
-  });
+  // 表に出す列：[見出し, 項目名, 表示方法]
+  var COLS = [
+    ["MFX", "mfxSend", "toggle"], ["IFX", "ifxOn", "toggle"],
+    ["Lvl", "level"], ["Pan", "pan"], ["Cut", "cutoff"], ["Res", "reso"], ["EGi", "filterEG"],
+    ["Atk", "attack"], ["Dcy", "decay"], ["Ptch", "pitch"], ["Gld", "glide"], ["OscE", "oscEdit"],
+    ["ModD", "modDepth"], ["ModS", "modSpeed"], ["IFXE", "ifxEdit"], ["Filter", "filterTypeName"]
+  ];
+  var midiLines = [], verifyLines = [];
 
-  function refreshPorts() {
-    inputs = toList(midi.inputs);
-    outputs = toList(midi.outputs);
-    var names = [];
-    for (var i = 0; i < inputs.length; i++) {
-      names.push(inputs[i].name);
-      inputs[i].onmidimessage = onMessage;
-    }
-    $("inList").textContent = names.length ? names.join(" / ") : "（なし）";
-    $("inList").className = names.length ? "" : "ng";
-
-    var sel = $("outSel"), prev = sel.value, html = "", pick = "";
-    for (var j = 0; j < outputs.length; j++) {
-      html += '<option value="' + j + '">' + esc(outputs[j].name) + '</option>';
-      if (!pick && /electribe|e2|SOUND/i.test(outputs[j].name)) pick = String(j);
-    }
-    sel.innerHTML = html || '<option value="">（なし）</option>';
-    if (prev && outputs[prev]) sel.value = prev; else if (pick) sel.value = pick;
-  }
-
-  function currentOut() {
-    var v = $("outSel").value;
-    return (v === "" || !outputs[v]) ? null : outputs[v];
-  }
-  function sendMsg(arr) {
-    var o = currentOut();
-    if (!o) { alert("出力ポートがありません"); return false; }
-    try { o.send(arr); return true; }
-    catch (e) { alert("送信エラー：" + e); return false; }
-  }
-
-  // ---------- 受信 ----------
-  var sx = null; // 受信中の SysEx
-  function onMessage(ev) {
-    var d = ev.data;
-    var i = 0;
-    if (sx && sx.active) {
-      sx.chunks++;
-      for (i = 0; i < d.length; i++) {
-        var b = d[i];
-        if (b >= 0xF8) continue;
-        sx.bytes.push(b);
-        if (b === 0xF7) { finishSysex(true); return; }
-      }
-      return;
-    }
-    if (!d.length) return;
-    var st = d[0];
-    if (st === 0xF0) {
-      startSysex();
-      sx.chunks = 1;
-      for (i = 0; i < d.length; i++) {
-        if (d[i] >= 0xF8) continue;
-        sx.bytes.push(d[i]);
-        if (d[i] === 0xF7) { finishSysex(true); return; }
-      }
-      return;
-    }
-    if (st >= 0xF8) return;
-    var type = st & 0xF0, ch = (st & 0x0F) + 1;
-    if (type === 0xB0) {
-      ccCount++;
-      var name = CC_NAMES[d[1]] ? " " + CC_NAMES[d[1]] : "";
-      var line = "ch" + ch + "  CC#" + d[1] + name + " = " + d[2];
-      $("lastCC").textContent = line;
-      addLog(line);
-      var f = CC_TO_FIELD[d[1]];
-      if (f && pat) { ccSeen[ch + ":" + f] = d[2]; renderParts(); }
-    } else if (type === 0xC0) {
-      addLog("ch" + ch + "  プログラムチェンジ " + d[1] + "（パターン切替）");
-      if ($("autoReq").checked) setTimeout(requestDump, 300);
-    } else {
-      otherCount++;
-      addLog("その他: " + hexArr(d, 8));
-    }
-  }
-  function addLog(line) {
-    ccLines.unshift(line);
-    if (ccLines.length > 60) ccLines.length = 60;
-    $("ccLog").textContent = ccLines.join("\n");
-  }
-
-  // ---------- ダンプ ----------
-  var req = null;
-  var timer = null;
-  function getGch() {
-    var c = parseInt($("gch").value, 10);
-    if (!(c >= 1 && c <= 16)) c = 1;
-    return c;
-  }
-  function getPid() {
-    var r = document.getElementsByName("pid");
-    for (var i = 0; i < r.length; i++) if (r[i].checked) return parseInt(r[i].value, 16);
-    return 0x24;
-  }
-  function setState(html) { $("dState").innerHTML = html; $("dStateTop").innerHTML = html; }
-  function requestDump() {
-    if (sx && sx.active) return; // 受信中は重ねて要求しない
-    var msg = [0xF0, 0x42, 0x30 + getGch() - 1, 0x00, 0x01, getPid(), 0x10, 0xF7];
-    clearResult();
-    req = { t0: now(), msg: msg, pid: getPid() };
-    $("dSent").textContent = hexArr(msg);
-    setState("読み込み中…");
-    if (!sendMsg(msg)) { setState('<span class="ng">送信できませんでした</span>'); return; }
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(function () {
-      if (sx && sx.active) {
-        finishSysex(false);
-      } else if (!sx) {
-        setState('<span class="ng">10秒待っても応答がありません</span>（「5. 通信の詳細・設定」の製品ID・グローバル ch と、出力ポートを確認してください）');
-      }
-    }, 10000);
-  }
-  function startSysex() {
-    sx = { active: true, bytes: [], chunks: 0, tFirst: now() };
-    if (req) $("dFirst").textContent = Math.round(sx.tFirst - req.t0) + " ms";
-  }
-  function finishSysex(complete) {
-    sx.active = false;
-    sx.tEnd = now();
-    if (timer) { clearTimeout(timer); timer = null; }
-    var b = sx.bytes;
-    $("dBytes").textContent = b.length + " バイト";
-    $("dChunks").textContent = sx.chunks + " 回";
-    if (req) $("dTime").textContent = Math.round(sx.tEnd - req.t0) + " ms";
-    $("dComplete").innerHTML = complete
-      ? '<span class="ok">そろっています（F0 で始まり F7 で終わる）</span>'
-      : '<span class="ng">途中で切れました（F7 が届かず 10 秒経過）</span>';
-
-    var isKorg = b[0] === 0xF0 && b[1] === 0x42 && b[3] === 0x00 && b[4] === 0x01;
-    var func = b[6];
-    if (!isKorg) {
-      $("dFunc").textContent = "KORG e2 以外の SysEx：" + hexArr(b, 12);
-    } else {
-      var fname = (func === 0x40) ? "0x40 Current Pattern Data Dump（期待どおり）" : "0x" + hex2(func) + "（ダンプ以外の応答）";
-      $("dFunc").innerHTML = (func === 0x40 ? '<span class="ok">' : '<span class="ng">') + fname + "</span>　製品ID 0x" + hex2(b[5]);
-    }
-    if (isKorg && func === 0x40 && complete) {
-      var data = decode7(b.slice(7, b.length - 1));
-      var good = data.length === 0x4000;
-      $("dDecoded").innerHTML = data.length + " バイト " + (good ? '<span class="ok">（0x4000 と一致）</span>' : '<span class="ng">（0x4000 = 16384 と不一致）</span>');
-      $("dHead").textContent = dumpView(data.slice(0, 64));
-      if (good) {
-        prevPat = pat;
-        pat = data;
-        ccSeen = {};
-        var t = new Date();
-        setState('<span class="ok">読み込み完了</span>（' + t.toLocaleTimeString() + "、" + Math.round(sx.tEnd - (req ? req.t0 : sx.tFirst)) + " ms）");
-        renderGlobal();
-        renderParts();
-        renderTypes();
-        renderDiff();
-      } else {
-        setState('<span class="ng">サイズが想定と違います</span>');
-      }
-    } else if (isKorg) {
-      $("dDecoded").textContent = "-";
-      $("dHead").textContent = "受信データ先頭：" + hexArr(b, 32);
-      setState('<span class="ng">ダンプを受け取れませんでした</span>');
-    }
-    req = null;
-  }
-
-  function decode7(src) {
-    var out = [];
-    for (var i = 0; i < src.length; i += 8) {
-      var msb = src[i];
-      for (var j = 0; j < 7 && i + 1 + j < src.length; j++) {
-        out.push(src[i + 1 + j] | (((msb >> j) & 1) << 7));
-      }
-    }
-    return out;
-  }
-  function dumpView(a) {
-    var lines = [];
-    for (var i = 0; i < a.length; i += 16) {
-      var row = a.slice(i, i + 16), txt = "";
-      for (var k = 0; k < row.length; k++) txt += (row[k] >= 0x20 && row[k] < 0x7F) ? String.fromCharCode(row[k]) : ".";
-      lines.push(hex4(i) + "  " + hexArr(row) + "  " + txt);
-    }
-    return lines.join("\n");
-  }
-  function clearResult() {
-    sx = null;
-    var ids = ["dBytes", "dChunks", "dFirst", "dTime", "dComplete", "dFunc", "dDecoded"];
-    for (var i = 0; i < ids.length; i++) $(ids[i]).textContent = "-";
-    $("dHead").textContent = "-";
-  }
-
-  // ---------- 表示 ----------
-  function pv(p, f) { return pat[PART_BASE + PART_LEN * (p - 1) + PF[f]]; }
-  function patName() {
-    var s = "";
-    for (var i = 0x10; i < 0x22; i++) { var c = pat[i]; if (c === 0) break; s += String.fromCharCode(c); }
-    return s.replace(/\s+$/, "");
-  }
-  function globalInfo() {
-    var tempo = pat[0x22] + 256 * pat[0x23];
-    return {
-      name: patName(),
-      tempo: (tempo / 10).toFixed(1),
-      mfx: tbl(MFX_TYPES, pat[0x3D]) + "（#" + pat[0x3D] + "）",
-      x: pat[0x3E], y: pat[0x3F],
-      hold: pat[0x41] ? "On" : "Off",
-      level: 127 - pat[0x2A]
-    };
-  }
-  function renderGlobal() {
-    var g = globalInfo();
-    $("glob").innerHTML =
-      "パターン名 <b>" + esc(g.name) + "</b>　BPM <b>" + g.tempo + "</b>　MFX <b>" + esc(g.mfx) + "</b><br>" +
-      "パッド X <b>" + g.x + "</b> / Y <b>" + g.y + "</b>　MFX Hold <b>" + g.hold + "</b>　Play Level <b>" + g.level + "</b>";
-  }
-  function cellVal(p, col) {
-    var raw = pv(p, col[1]);
-    if (col[2] === "onoff") return raw ? '<span class="on">On</span>' : "Off";
-    if (col[2] === true) return String(sbyte(raw));
-    return String(raw);
-  }
-  function renderParts() {
-    if (!pat) return;
+  // ---- 表を作る（最初の1回） ----
+  function buildTable() {
     var h = "<tr><th>Part</th><th>Mute</th>";
     for (var c = 0; c < COLS.length; c++) h += "<th>" + COLS[c][0] + "</th>";
     h += "</tr>";
     for (var p = 1; p <= 16; p++) {
-      var muted = pv(p, "mute") !== 0;
-      h += '<tr' + (muted ? ' class="muted"' : '') + '><td class="p">' + p + "</td><td>" + (muted ? "Mute" : "-") + "</td>";
-      for (var c2 = 0; c2 < COLS.length; c2++) {
-        var key = p + ":" + COLS[c2][1];
-        var extra = (key in ccSeen) ? '<span class="cc">CC:' + ccSeen[key] + "</span>" : "";
-        h += "<td>" + cellVal(p, COLS[c2]) + extra + "</td>";
+      h += '<tr id="row' + p + '"><td class="p">' + p + '</td><td id="c' + p + '_mute">-</td>';
+      for (var k = 0; k < COLS.length; k++) {
+        var id = "c" + p + "_" + COLS[k][1];
+        if (COLS[k][2] === "toggle") h += '<td><button class="tg" id="' + id + '" data-p="' + p + '" data-f="' + COLS[k][1] + '">-</button></td>';
+        else h += '<td id="' + id + '">-</td>';
       }
       h += "</tr>";
     }
-    $("partsTable").innerHTML = h;
-  }
-  function renderTypes() {
-    var h = "<tr><th>Part</th><th>Osc#</th><th>Filter</th><th>Mod</th><th>IFX type</th><th>Voice</th></tr>";
-    for (var p = 1; p <= 16; p++) {
-      h += '<tr><td class="p">' + p + "</td><td>" + (pv(p, "oscTypeL") + 256 * pv(p, "oscTypeH")) +
-        "</td><td>" + esc(tbl(FILTER_TYPES, pv(p, "filterType"))) +
-        "</td><td>" + esc(tbl(MOD_TYPES, pv(p, "modType"))) +
-        "</td><td>" + esc(tbl(IFX_TYPES, pv(p, "ifxType"))) +
-        "</td><td>" + esc(tbl(VOICE_TYPES, pv(p, "voiceAssign"))) + "</td></tr>";
+    $("tbl").innerHTML = h;
+    var btns = document.querySelectorAll(".tg");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].onclick = function () {
+        if (!E2.state.loaded) return;
+        var p = parseInt(this.getAttribute("data-p"), 10), f = this.getAttribute("data-f");
+        E2.setPart(p, f, E2.state.parts[p][f] ? 0 : 1);
+      };
     }
-    $("typesTable").innerHTML = h;
-  }
-  function describeOffset(o) {
-    if (o >= PART_BASE && o < PART_BASE + PART_LEN * 16) {
-      var p = Math.floor((o - PART_BASE) / PART_LEN) + 1, r = (o - PART_BASE) % PART_LEN;
-      if (r >= 0x30) {
-        var s = Math.floor((r - 0x30) / 12) + 1;
-        return "パート" + p + " ステップ" + s + "（+" + ((r - 0x30) % 12) + "）";
-      }
-      return "パート" + p + " " + (PF_NAME[r] || "不明(+0x" + hex2(r) + ")");
-    }
-    if (GF[o]) return "全体 " + GF[o];
-    if (o >= 0x10 && o < 0x22) return "全体 パターン名";
-    if (o >= 0x100 && o < 0x800) return "全体 モーションシーケンス";
-    return "不明";
-  }
-  function renderDiff() {
-    if (!prevPat) { lastDiff = "（比較する前回のデータがありません。もう一度読み込むと差分が出ます）"; $("diff").textContent = lastDiff; return; }
-    var lines = [], count = 0;
-    for (var i = 0; i < pat.length; i++) {
-      if (pat[i] !== prevPat[i]) {
-        count++;
-        if (lines.length < 40) lines.push("0x" + hex4(i) + "  " + prevPat[i] + " → " + pat[i] + "   " + describeOffset(i));
-      }
-    }
-    if (!count) lastDiff = "変化なし";
-    else lastDiff = count + " バイト変化\n" + lines.join("\n") + (count > 40 ? "\n…（先頭40件のみ表示）" : "");
-    $("diff").textContent = lastDiff;
   }
 
-  // ---------- ボタン ----------
-  $("btnDump").onclick = requestDump;
-  $("btnTestOn").onclick = function () { sendMsg([0xB0, 105, 127]); };
-  $("btnTestOff").onclick = function () { sendMsg([0xB0, 105, 0]); };
-  $("btnSummary").onclick = function () {
-    function t(id) { return $(id).textContent; }
-    var s = [];
-    s.push("[e2 MIDI 確認ページ v2 の結果]");
-    s.push("状態: " + t("dState") + " / 受信 " + t("dBytes") + " / " + t("dTime"));
-    if (pat) {
-      var g = globalInfo();
-      s.push("全体: 名前=" + g.name + " BPM=" + g.tempo + " MFX=" + g.mfx + " X=" + g.x + " Y=" + g.y + " Hold=" + g.hold + " PlayLevel=" + g.level);
-      for (var p = 1; p <= 16; p++) {
-        var row = "P" + p + (pv(p, "mute") ? " Mute" : "");
-        for (var c = 0; c < COLS.length; c++) {
-          var key = p + ":" + COLS[c][1];
-          var raw = pv(p, COLS[c][1]);
-          row += " " + COLS[c][0] + "=" + (COLS[c][2] === true ? sbyte(raw) : raw) + ((key in ccSeen) ? "(CC" + ccSeen[key] + ")" : "");
-        }
-        row += " Osc#=" + (pv(p, "oscTypeL") + 256 * pv(p, "oscTypeH")) + " Flt=" + pv(p, "filterType") + " Mod=" + pv(p, "modType") + " IFXt=" + pv(p, "ifxType");
-        s.push(row);
-      }
+  // ---- 1セル更新 ----
+  function setCell(p, f, flash) {
+    var el = $("c" + p + "_" + f);
+    if (!el) return;
+    var v = E2.state.parts[p][f];
+    if (el.className.indexOf("tg") >= 0) {
+      el.textContent = v ? "ON" : "off";
+      el.className = "tg" + (v ? " on" : "");
+    } else {
+      el.textContent = (f === "mute") ? (v ? "Mute" : "-") : v;
     }
-    s.push("--- 差分 ---");
-    s.push(lastDiff || "-");
-    s.push("--- 最近の受信 ---");
-    s.push(ccLines.slice(0, 8).join("\n"));
+    if (flash) {
+      var td = el.tagName === "TD" ? el : el.parentNode;
+      td.className = "flash";
+      setTimeout(function () { td.className = ""; }, 400);
+    }
+  }
+  function renderAll() {
+    var s = E2.state, g = s.global;
+    $("gName").textContent = g.name;
+    $("gTempo").textContent = g.tempo.toFixed(1);
+    $("gMfx").textContent = g.mfxTypeName + (g.mfxHold ? "（Hold）" : "");
+    $("gLoaded").textContent = "読込 " + s.loadedAt.toLocaleTimeString() + "（" + s.reason + "、" + s.loadMs + "ms）";
+    for (var p = 1; p <= 16; p++) {
+      $("row" + p).className = s.parts[p].mute ? "muted" : "";
+      setCell(p, "mute");
+      for (var c = 0; c < COLS.length; c++) setCell(p, COLS[c][1]);
+    }
+  }
+
+  // ---- 通知を受け取る ----
+  E2.on(function (type, d) {
+    if (type === "status") {
+      var st = E2.status;
+      var dot = $("dot");
+      if (st.midi === "unsupported") { dot.className = "dot ng"; $("conn").textContent = "Web MIDI 非対応"; }
+      else if (st.midi === "denied") { dot.className = "dot ng"; $("conn").textContent = "MIDI 使用不可（SysEx 設定を確認）"; }
+      else if (!st.outName) { dot.className = "dot ng"; $("conn").textContent = "e2 が見つかりません"; }
+      else if (st.busy) { dot.className = "dot busy"; $("conn").textContent = "読み込み中"; }
+      else { dot.className = "dot ok"; $("conn").textContent = "接続中"; }
+      $("ports").textContent = "入力：" + st.inNames.join(" / ") + "　出力：" + st.outName;
+    } else if (type === "loaded") {
+      renderAll();
+    } else if (type === "part") {
+      setCell(d.part, d.field, true);
+    } else if (type === "verify") {
+      var t = new Date().toLocaleTimeString();
+      if (!d.mismatches.length) {
+        verifyLines.unshift(t + "  " + d.checked + " 項目すべて一致");
+      } else {
+        for (var i = 0; i < d.mismatches.length; i++) {
+          var m = d.mismatches[i];
+          verifyLines.unshift(t + "  ✗ パート" + m.part + " " + m.field + "：予測 " + m.expected + " / 実際 " + m.actual + "（CC " + m.cc + "、" + (m.source === "e2" ? "本体の操作" : "画面の操作") + "）");
+        }
+      }
+      if (verifyLines.length > 40) verifyLines.length = 40;
+      $("verifyLog").textContent = verifyLines.join("\n");
+    } else if (type === "midi") {
+      midiLines.unshift(d);
+      if (midiLines.length > 50) midiLines.length = 50;
+      $("midiLog").textContent = midiLines.join("\n");
+    } else if (type === "error") {
+      midiLines.unshift("⚠ " + d);
+      $("midiLog").textContent = midiLines.join("\n");
+    }
+  });
+
+  // ---- ボタン ----
+  $("btnReload").onclick = function () { E2.requestDump("手動"); };
+  $("mfxAllOn").onclick = function () { if (E2.state.loaded) E2.setAllParts("mfxSend", 1); };
+  $("mfxAllOff").onclick = function () { if (E2.state.loaded) E2.setAllParts("mfxSend", 0); };
+  $("optVerify").onchange = function () { E2.options.verifyAfterEdit = this.checked; };
+  $("optAuto").onchange = function () { E2.options.autoReloadOnPattern = this.checked; };
+  $("btnSummary").onclick = function () {
+    var s = [], st = E2.state;
+    s.push("[e2 土台テスト / " + E2.version + "]");
+    s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
+    if (st.loaded) s.push("全体: " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
+    s.push("--- 照合 ---");
+    s.push(verifyLines.slice(0, 20).join("\n") || "なし");
+    s.push("--- MIDI ---");
+    s.push(midiLines.slice(0, 15).join("\n"));
     $("summary").value = s.join("\n");
   };
-  $("btnSelect").onclick = function () {
-    var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length);
-  };
+  $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
+
+  buildTable();
+  E2.start();
 })();
 </script>
 </body>
