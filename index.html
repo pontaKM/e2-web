@@ -72,39 +72,45 @@
   .w.tg { border-radius:4px; background:#2c2e33; display:flex; align-items:center; justify-content:center; font-size:15px; color:#e4e4e4; }
   .w.tg.big { font-size:20px; font-weight:700; }
   .w.tg.on { background:#f59e0b; color:#2a1a00; }
+  .w.tg.pk { color:#f472b6; box-shadow:inset 0 0 0 1px #5a2a44; }
+  .w.tg.pk.on { background:#f472b6; color:#2a0a1a; box-shadow:none; }
+  .w.tg .tl { font-size:11px; display:block; text-align:center; line-height:12px; opacity:.85; }
+  .w.tg .tvv { display:block; text-align:center; }
   .w .gline { fill:none; stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; }
   .w .gbase { fill:none; stroke:#34363c; stroke-width:1; }
   .w.graph { background:#16171a; border-radius:4px; }
   /* フェーダー：太い溝、グループ色の塗り、白いつまみ、基準 70 の線 */
-  .w .ftr { position:absolute; left:50%; width:16px; margin-left:-8px; top:0; border-radius:8px; background:#26282c; overflow:hidden; }
+  .w .ftr { position:absolute; left:50%; width:18px; margin-left:-9px; top:0; border-radius:8px; background:#26282c; overflow:hidden; }
   .w .ffl { position:absolute; left:0; right:0; bottom:0; }
+  .w .frl { position:absolute; left:2px; font-size:11px; line-height:12px; margin-top:-13px; color:#ffffff; }
   .w .fref { position:absolute; left:0; right:0; height:2px; margin-top:-1px; background:#ffffff; box-shadow:0 0 0 1px #111214; }
   .w .fcap { position:absolute; left:50%; width:30px; margin-left:-15px; height:10px; margin-top:-5px; border-radius:3px; background:#ffffff; }
   .w .fcap.ref { background:#e4e4e4; box-shadow:0 0 0 2px #111214, 0 0 0 3px #e4e4e4; }
   .w .fv { position:absolute; left:0; right:0; bottom:0; text-align:center; font-size:14px; line-height:16px; color:#e4e4e4; }
   .w .fd { position:absolute; left:0; right:0; bottom:16px; text-align:center; font-size:11px; line-height:13px; color:#8a8d93; }
 
-  /* MIX：1パート＝縦 1 列のミキサー卓 */
-  .mxl { position:absolute; left:0; font-size:12px; text-align:left; }
-  .mxh { position:absolute; box-sizing:border-box; border-radius:4px; background:#1b1c1f; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; }
-  .mxh .n { font-size:21px; font-weight:700; color:#fff; }
-  .mxh .m { font-size:10px; color:#e4e4e4; background:#3a3d44; border-radius:3px; padding:0 2px; margin-top:2px; visibility:hidden; }
-  .mxh.muted .n { color:#6a6d73; }
-  .mxh.muted .m { visibility:visible; }
+  /* MIX：上段 1〜8、下段 9〜16。1パート＝縦の帯（状態を見るのが主） */
+  .mxs { position:absolute; box-sizing:border-box; border-radius:6px; background:#1b1c1f; }
+  .mxh { position:absolute; display:flex; align-items:center; justify-content:center; }
+  .mxh .n { font-size:22px; font-weight:700; color:#fff; }
+  .mtag { font-size:11px; font-weight:700; color:#111214; background:#e4e4e4; border-radius:3px; padding:1px 4px; margin-left:6px; display:none; line-height:13px; }
+  .muted .mtag, .mtag.on { display:inline-block; }
   .w.muted { opacity:.45; }
-  #mixBox.stale .w, #mixBox.stale .mxh, #partBox.stale .w { opacity:.25; }
+  #mixBox.stale .w, #partBox.stale .w { opacity:.25; }
 
-  /* PART：上にパート選択、下に役割ごとのカード */
-  .psel { position:absolute; box-sizing:border-box; border-radius:4px; background:#2c2e33; color:#e4e4e4; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; }
+  /* PART：上にパート選択（正方形）、下に役割ごとのカード */
+  .psel { position:absolute; box-sizing:border-box; border-radius:6px; background:#2c2e33; color:#e4e4e4; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:30px; font-weight:700; }
+  .psel .mtag { margin:4px 0 0; }
   .psel.on { background:#e4e4e4; color:#111214; }
-  .psel.muted { color:#6a6d73; }
-  .psel.on.muted { color:#6a6d73; }
+  .psel.on .mtag { background:#111214; color:#e4e4e4; }
   #pInfo { position:absolute; left:0; right:0; font-size:17px; color:#c9cbd0; white-space:nowrap; overflow:hidden; }
   #pInfo b { color:#fff; font-size:20px; margin-right:10px; }
-  #pInfo .mt { font-size:13px; background:#3a3d44; border-radius:3px; padding:1px 5px; margin-left:8px; color:#e4e4e4; }
+  #pInfo .mtag { font-size:14px; padding:2px 6px; margin:0 10px 0 0; vertical-align:2px; }
   .card { position:absolute; box-sizing:border-box; border-radius:6px; background:#1b1c1f; }
   .card .ct { position:absolute; left:10px; right:10px; top:6px; font-size:15px; white-space:nowrap; overflow:hidden; }
   .card .ct .ty { color:#a0a3a9; margin-left:8px; font-size:14px; }
+  .w .gwave { fill:#3a3d44; }
+  .w .gtxt { font-size:12px; font-weight:700; }
 
   /* 準備中・設定ページ */
   .note { color:#8a8d93; font-size:16px; padding:20px; }
@@ -217,7 +223,7 @@
 <script src="e2core.js?v=7"></script>
 <script>
 (function () {
-  var SCREEN = "base-v16";
+  var SCREEN = "base-v17";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -266,7 +272,7 @@
   function wPart(w) { return w.part === "sel" ? selPart : w.part; }
   function wFields(w) { return w.f instanceof Array ? w.f : [w.f]; }
   function wHTML(w, label, cls) {
-    var c = GROUP_COLOR[w.g], h = '<div class="w ' + w.kind + (cls ? " " + cls : "") + (w.kind === "toggle" ? " tg" : "") + '" id="' + w.id + '" data-w="' + w.i + '">';
+    var c = GROUP_COLOR[w.g], h = '<div class="w ' + w.kind + (cls ? " " + cls : "") + (w.kind === "toggle" ? " tg" + (w.g === "ifx" ? " pk" : "") : "") + '" id="' + w.id + '" data-w="' + w.i + '">';
     if (w.kind === "knob") {
       h += '<svg id="' + w.id + 'g" viewBox="0 0 40 40" width="36" height="36"><path class="trk" d="' + KNOB_TRACK + '"/>' +
            '<path class="arc" id="' + w.id + 'a" d="" style="stroke:' + c + '"/><line class="ind" id="' + w.id + 'i" x1="20" y1="20" x2="20" y2="20"/>';
@@ -274,14 +280,14 @@
       h += '</svg>' + (label ? '<div class="kl" id="' + w.id + 'l" style="color:' + c + '">' + label + '</div>' : "") + '<div class="kv" id="' + w.id + 'v"></div>';
     } else if (w.kind === "fader") {
       h += '<div class="ftr" id="' + w.id + 't"><div class="ffl" id="' + w.id + 'f" style="background:' + c + '"></div></div>' +
-           (w.ref !== undefined ? '<div class="fref" id="' + w.id + 'r"></div>' : "") +
+           (w.ref !== undefined ? '<div class="fref" id="' + w.id + 'r"></div><div class="frl" id="' + w.id + 'rl">' + w.ref + '</div>' : "") +
            '<div class="fcap" id="' + w.id + 'c"></div><div class="fd" id="' + w.id + 'd"></div><div class="fv" id="' + w.id + 'v"></div>';
     } else if (w.kind === "toggle") {
-      h += '<span id="' + w.id + 'v">-</span>';
+      h += '<span>' + (w.text ? '<span class="tl">' + w.text + '</span>' : "") + '<span class="tvv" id="' + w.id + 'v">-</span></span>';
     } else {
-      h += '<svg id="' + w.id + 'g" width="100" height="40"><path class="gbase" id="' + w.id + 'b" d=""/>' +
+      h += '<svg id="' + w.id + 'g" width="100" height="40"><path class="gwave" id="' + w.id + 'w" d=""/><path class="gbase" id="' + w.id + 'b" d=""/>' +
            '<path id="' + w.id + 'f" d="" style="fill:' + c + ';fill-opacity:.18;stroke:none"/>' +
-           '<path class="gline" id="' + w.id + 'a" d="" style="stroke:' + c + '"/></svg>';
+           '<path class="gline" id="' + w.id + 'a" d="" style="stroke:' + c + '"/><text class="gtxt" id="' + w.id + 't" x="0" y="0" style="fill:' + c + '"></text></svg>';
     }
     return h + '</div>';
   }
@@ -299,8 +305,8 @@
     } else if (w.kind === "fader") {
       w.trackH = ht - 32 - 10; w.trackTop = 5;
       var t = $(w.id + "t"); t.style.top = w.trackTop + "px"; t.style.height = w.trackH + "px";
-      if (w.ref !== undefined) $(w.id + "r").style.top = (w.trackTop + w.trackH * (1 - w.ref / 127)) + "px";
-    } else if (w.kind === "filter" || w.kind === "env") {
+      if (w.ref !== undefined) { var ry = (w.trackTop + w.trackH * (1 - w.ref / 127)) + "px"; $(w.id + "r").style.top = ry; $(w.id + "rl").style.top = ry; }
+    } else if (w.kind === "filter" || w.kind === "env" || w.kind === "sample") {
       var g = $(w.id + "g"); w.gw = wd - 12; w.gh = ht - 12;
       g.setAttribute("width", w.gw); g.setAttribute("height", w.gh); g.setAttribute("viewBox", "0 0 " + w.gw + " " + w.gh);
       g.style.left = "6px"; g.style.top = "6px"; g.style.marginLeft = "0";
@@ -309,10 +315,10 @@
 
   // ---------------- 寸法（Web MIDI Browser のツールバー分は画面の高さから自動で引く） ----------------
   // MFX：上に正方形の XY（右に HOLD・ALL の細い列）、下にパート 2段×8（上段 1〜8、下段 9〜16）
-  // MIX：1パート＝縦 1 列（番号、PAN、IFX、FXE、LVL フェーダー）。左端に項目名の細い列
-  // PART：上にパート選択 2段×8、下に役割ごとのカード 2列×3段
+  // MIX：上段 1〜8、下段 9〜16。1パート＝縦の帯（番号、PAN、IFX と IFXe、LVL フェーダー）
+  // PART：上に正方形のパート選択 2段×8、下に役割ごとのカード 2列×3段
   var TOP = 48, M = 4, G = 6, SIDE_W = 84, PADS_MIN = 170;
-  var MIX_LBL = 30, MIX_GAP = 3, mixColW = 42;
+  var MIX_GAP = 6, mixColW = 90;
   function layout() {
     var W = window.innerWidth, H = window.innerHeight;
     $("rotate").style.display = W > H ? "flex" : "none";
@@ -333,29 +339,26 @@
     layoutMix(inner, h);
     layoutPart(inner, h);
     drawMix();
-    $("sizeInfo").textContent = "画面 " + W + "×" + H + "pt / XY パッド " + xy + "pt 四方（約 " + (xy * 0.157 / 10).toFixed(1) + "cm）/ パートボタン " + pw + "×" + ph + "pt（約 " + (pw * 0.157 / 10).toFixed(1) + "×" + (ph * 0.157 / 10).toFixed(1) + "cm）/ MIX の列幅 " + mixColW + "pt（約 " + (mixColW * 0.157 / 10).toFixed(1) + "cm）";
+    $("sizeInfo").textContent = "画面 " + W + "×" + H + "pt / XY パッド " + xy + "pt 四方（約 " + (xy * 0.157 / 10).toFixed(1) + "cm）/ パートボタン " + pw + "×" + ph + "pt（約 " + (pw * 0.157 / 10).toFixed(1) + "×" + (ph * 0.157 / 10).toFixed(1) + "cm）/ MIX の帯の幅 " + mixColW + "pt（約 " + (mixColW * 0.157 / 10).toFixed(1) + "cm）";
   }
   function layoutMix(inner, h) {
-    var cw = mixColW = Math.floor((inner - MIX_LBL - 16 * MIX_GAP) / 16);
-    var yHead = 0, hHead = 44, yPan = hHead + 6, hPan = cw + 12, yIfx = yPan + hPan + 6, hIfx = 34, yFxe = yIfx + hIfx + 6, hFxe = cw + 12;
-    var yLvl = yFxe + hFxe + 10, hLvl = h - yLvl;
-    var L = [["PAN", "mix", yPan + cw / 2 - 8], ["IFX", "ifx", yIfx + hIfx / 2 - 8], ["FXE", "ifx", yFxe + cw / 2 - 8], ["LVL", "mix", yLvl + 4]];
-    // 基準 70 の高さに「70」と書く（フェーダーの溝と同じ計算）
-    var tH = hLvl - 32 - 10;
-    $("mxl4").style.top = (yLvl + 5 + tH * (1 - LEVEL_REF / 127) - 8) + "px";
-    for (var i = 0; i < L.length; i++) { var lb = $("mxl" + i); lb.style.top = L[i][2] + "px"; }
+    var cw = mixColW = Math.floor((inner - 7 * MIX_GAP) / 8), sh = Math.floor((h - MIX_GAP) / 2);
+    var half = Math.floor((cw - 12) / 2);
     for (var p = 1; p <= 16; p++) {
-      var x = MIX_LBL + MIX_GAP + (p - 1) * (cw + MIX_GAP), hd = $("mxh" + p);
-      hd.style.left = x + "px"; hd.style.top = yHead + "px"; hd.style.width = cw + "px"; hd.style.height = hHead + "px";
-      var m = MIXW[p];
-      placeW(m.pan, x, yPan, cw, hPan);
-      placeW(m.ifx, x, yIfx, cw, hIfx);
-      placeW(m.fxe, x, yFxe, cw, hFxe);
-      placeW(m.lvl, x, yLvl, cw, hLvl);
+      var x = ((p - 1) % 8) * (cw + MIX_GAP), y = (p > 8 ? sh + MIX_GAP : 0), st = $("mxs" + p), hd = $("mxh" + p);
+      st.style.left = x + "px"; st.style.top = y + "px"; st.style.width = cw + "px"; st.style.height = sh + "px";
+      hd.style.left = x + "px"; hd.style.top = (y + 4) + "px"; hd.style.width = cw + "px"; hd.style.height = "30px";
+      var m = MIXW[p], yy = y + 38;
+      placeW(m.pan, x + 4, yy, cw - 8, 70);            // PAN（ラベル付き）
+      yy += 74;
+      placeW(m.ifx, x + 4, yy + 6, half, 44);          // IFX の ON/OFF と IFXe を横に並べる
+      placeW(m.fxe, x + 8 + half, yy, half, 58);
+      yy += 64;
+      placeW(m.lvl, x + 4, yy, cw - 8, y + sh - 4 - yy);
     }
   }
   function layoutPart(inner, h) {
-    var G2 = 6, pw = Math.floor((inner - 7 * 4) / 8), ph = 40;
+    var G2 = 6, pw = Math.floor((inner - 7 * 4) / 8), ph = pw;      // パート選択は正方形
     for (var p = 1; p <= 16; p++) {
       var el = $("psel" + p), col = (p - 1) % 8, row = p > 8 ? 1 : 0;
       el.style.left = (col * (pw + 4)) + "px"; el.style.top = (row * (ph + 4)) + "px"; el.style.width = pw + "px"; el.style.height = ph + "px";
@@ -363,7 +366,7 @@
     var yInfo = 2 * ph + 4 + 8;
     $("pInfo").style.top = yInfo + "px"; $("pInfo").style.height = "24px"; $("pInfo").style.lineHeight = "24px";
     var yc = yInfo + 24 + 8, cwid = Math.floor((inner - G2) / 2), ch = Math.floor((h - yc - 2 * G2) / 3);
-    var K = Math.max(40, Math.min(76, Math.floor((ch - 28) / 2) - 16)), kw = K + 26, kh = K + 16 + 18;
+    var K = Math.max(40, Math.min(64, Math.floor((ch - 28) / 2) - 22)), kw = K + 26, kh = K + 16 + 18;
     for (var c = 0; c < PCARDS.length; c++) {
       var C = PCARDS[c], cx = (c % 2) * (cwid + G2), cy = yc + Math.floor(c / 2) * (ch + G2), cd = $("pc" + c);
       cd.style.left = cx + "px"; cd.style.top = cy + "px"; cd.style.width = cwid + "px"; cd.style.height = ch + "px";
@@ -472,41 +475,41 @@
   var KNOB_TRACK = "M8.69 31.31 A16 16 0 1 1 31.31 31.31";   // −135°〜+135° の弧（下が欠けた円）
   var MIXW = [null], PCARDS = [];
   (function () {
-    // MIX：左端に項目名、各パートは縦 1 列
-    var h = "", L = [["PAN", "mix"], ["IFX", "ifx"], ["FXE", "ifx"], ["LVL", "mix"]];
-    for (var i = 0; i < L.length; i++) h += '<div class="mxl" id="mxl' + i + '" style="color:' + GROUP_COLOR[L[i][1]] + '">' + L[i][0] + '</div>';
-    h += '<div class="mxl" id="mxl4" style="color:#ffffff;font-size:14px">' + LEVEL_REF + '</div>';
+    // MIX：各パートは縦の帯（上段 1〜8、下段 9〜16）
+    var h = "";
     for (var p = 1; p <= 16; p++) {
       var m = MIXW[p] = {
         pan: addW({ kind: "knob", part: p, f: "pan", bi: true, g: "mix" }),
-        ifx: addW({ kind: "toggle", part: p, f: "ifxOn", g: "ifx" }),
+        ifx: addW({ kind: "toggle", part: p, f: "ifxOn", g: "ifx", text: "IFX" }),
         fxe: addW({ kind: "knob", part: p, f: "ifxEdit", g: "ifx" }),
         lvl: addW({ kind: "fader", part: p, f: "level", g: "mix", ref: LEVEL_REF })
       };
-      h += '<div class="mxh" id="mxh' + p + '"><span class="n">' + p + '</span><span class="m">MUTE</span></div>';
-      h += wHTML(m.pan) + wHTML(m.ifx) + wHTML(m.fxe) + wHTML(m.lvl);
+      h += '<div class="mxs" id="mxs' + p + '"></div><div class="mxh" id="mxh' + p + '"><span class="n">' + p + '</span><span class="mtag">MUTE</span></div>';
+      h += wHTML(m.pan, "PAN") + wHTML(m.ifx) + wHTML(m.fxe, "IFXe") + wHTML(m.lvl);
     }
     $("mixBox").innerHTML = h;
 
     // PART：パート選択と、役割ごとのカード
     var K = function (f, l, g, o) { var w = { kind: "knob", part: "sel", f: f, g: g, label: l }; for (var k in (o || {})) w[k] = o[k]; return addW(w); };
+    // 本体の並びに近い順：OSC → FILTER → MOD → AMP → EG → IFX（左右 2 列、上から）
     PCARDS = [
+      { t: "OSC", g: "osc", ty: function (pt) { return "#" + pt.oscType; },
+        graph: addW({ kind: "sample", part: "sel", f: ["oscEdit"], g: "osc" }),
+        knobs: [K("pitch", "PITCH", "osc", { bi: true }), K("glide", "GLIDE", "osc"), K("oscEdit", "EDIT", "osc")] },
       { t: "FILTER", g: "flt", ty: function (pt) { return pt.filterTypeName; },
         graph: addW({ kind: "filter", part: "sel", f: ["cutoff", "reso", "filterType"], g: "flt" }),
         knobs: [K("cutoff", "CUTOFF", "flt"), K("reso", "RESO", "flt")] },
-      { t: "EG", g: "env", graph: addW({ kind: "env", part: "sel", f: ["attack", "decay"], g: "env" }),
-        knobs: [K("attack", "ATTACK", "env"), K("decay", "DECAY", "env")] },
-      { t: "OSC", g: "osc", ty: function (pt) { return "#" + pt.oscType; },
-        knobs: [K("pitch", "PITCH", "osc", { bi: true }), K("glide", "GLIDE", "osc"), K("oscEdit", "EDIT", "osc")] },
       { t: "MOD", g: "mod", ty: function (pt) { return "#" + pt.modType; },
         knobs: [K("filterEG", "EG INT", "mod", { bi: true }), K("modDepth", "DEPTH", "mod"), K("modSpeed", "SPEED", "mod")] },
       { t: "AMP", g: "mix",
         knobs: [K("level", "LEVEL", "mix", { ref: LEVEL_REF }), K("pan", "PAN", "mix", { bi: true })] },
+      { t: "EG", g: "env", graph: addW({ kind: "env", part: "sel", f: ["attack", "decay"], g: "env" }),
+        knobs: [K("attack", "ATTACK", "env"), K("decay", "DECAY", "env")] },
       { t: "IFX", g: "ifx", ty: function (pt) { return "#" + pt.ifxType; },
         knobs: [addW({ kind: "toggle", part: "sel", f: "ifxOn", g: "ifx" }), K("ifxEdit", "EDIT", "ifx")] }
     ];
     h = "";
-    for (p = 1; p <= 16; p++) h += '<div class="psel" id="psel' + p + '" data-p="' + p + '">' + p + '</div>';
+    for (p = 1; p <= 16; p++) h += '<div class="psel" id="psel' + p + '" data-p="' + p + '"><span>' + p + '</span><span class="mtag">MUTE</span></div>';
     h += '<div id="pInfo"></div>';
     for (var c = 0; c < PCARDS.length; c++) {
       var C = PCARDS[c];
@@ -553,6 +556,18 @@
     return "M2 " + b + " C" + (2 + (ax - 2) * 0.35).toFixed(1) + " " + (top + (b - top) * 0.15).toFixed(1) + " " + (ax - (ax - 2) * 0.1).toFixed(1) + " " + top + " " + ax.toFixed(1) + " " + top +
            " C" + (ax + dw * 0.15).toFixed(1) + " " + (b - (b - top) * 0.2).toFixed(1) + " " + (ax + dw * 0.45).toFixed(1) + " " + b + " " + ex.toFixed(1) + " " + b + " L" + W + " " + b;
   }
+  // サンプルの絵：波形（見本の形）の上に再生開始位置の線と向きの矢印。0〜63 = 前から再生（左→右）、
+  //   64〜127 = 逆再生（右→左。開始位置は 64 で右端、127 で左端寄り）。hacktribe の sampler の動きを仮定した表示（未確認）
+  var WAVE = (function () { var a = [], r = 7; for (var i = 0; i < 96; i++) { r = (r * 9301 + 49297) % 233280; var env = Math.exp(-i / 30) * 0.85 + 0.15; a.push(env * (0.35 + 0.65 * r / 233280)); } return a; })();
+  function samplePaths(W, H, v) {
+    var mid = H / 2, n = WAVE.length, bw = W / n, wave = "", rev = v >= 64;
+    for (var i = 0; i < n; i++) { var a = WAVE[i] * (H / 2 - 4), x = (i * bw).toFixed(1); wave += "M" + x + " " + (mid - a).toFixed(1) + " h" + Math.max(1, bw - 1).toFixed(1) + " V" + (mid + a).toFixed(1) + " h-" + Math.max(1, bw - 1).toFixed(1) + " Z"; }
+    var pos = rev ? 1 - (v - 64) / 63 : v / 63, sx = clamp(pos, 0, 1) * (W - 4) + 2;
+    var region = rev ? "M2 2 H" + sx.toFixed(1) + " V" + (H - 2) + " H2 Z" : "M" + sx.toFixed(1) + " 2 H" + (W - 2) + " V" + (H - 2) + " H" + sx.toFixed(1) + " Z";
+    var d = rev ? -1 : 1, ay = 10;
+    var line = "M" + sx.toFixed(1) + " 2 V" + (H - 2) + " M" + sx.toFixed(1) + " " + ay + " h" + (d * 18) + " m" + (-d * 6) + " -5 l" + (d * 6) + " 5 l" + (-d * 6) + " 5";
+    return { wave: wave, region: region, line: line, label: rev ? "REV" : "FWD", lx: rev ? sx - 52 : sx + 24, rev: rev };
+  }
   function fmtVal(w, v) {
     if (w.f === "pan") return v === 0 ? "C" : (v < 0 ? "L" + (-v) : "R" + v);
     if (w.bi) return v > 0 ? "+" + v : String(v);
@@ -581,6 +596,13 @@
       cap.className = "fcap" + (w.ref !== undefined && v === w.ref ? " ref" : "");
       $(w.id + "v").textContent = v;
       $(w.id + "d").textContent = w.ref !== undefined && v !== w.ref ? (v > w.ref ? "+" : "") + (v - w.ref) : "";
+    } else if (w.gw && w.kind === "sample") {
+      var sp = samplePaths(w.gw, w.gh, v), t = $(w.id + "t");
+      $(w.id + "w").setAttribute("d", sp.wave);
+      $(w.id + "f").setAttribute("d", sp.region);
+      $(w.id + "a").setAttribute("d", sp.line);
+      $(w.id + "b").setAttribute("d", "");
+      t.textContent = sp.label; t.setAttribute("x", clamp(sp.lx, 2, w.gw - 30)); t.setAttribute("y", 14);
     } else if (w.gw) {
       var d = w.kind === "filter" ? filterPath(w.gw, w.gh, pt.filterType, pt.cutoff, pt.reso) : envPath(w.gw, w.gh, pt.attack, pt.decay);
       var by = w.kind === "filter" ? Math.round(w.gh * 0.42) : w.gh - 2;
@@ -597,7 +619,7 @@
   function drawPart() {
     var s = E2.state, pt = s.loaded ? s.parts[selPart] : null;
     for (var p = 1; p <= 16; p++) $("psel" + p).className = "psel" + (p === selPart ? " on" : "") + (s.loaded && s.parts[p].mute ? " muted" : "");
-    $("pInfo").innerHTML = "<b>PART " + selPart + "</b>" + (pt ? (VOICES[pt.voiceAssign] || ("V" + pt.voiceAssign)) + (pt.mute ? '<span class="mt">MUTE</span>' : "") : "");
+    $("pInfo").innerHTML = "<b>PART " + selPart + "</b>" + (pt && pt.mute ? '<span class="mtag on">MUTE</span>' : "") + (pt ? (VOICES[pt.voiceAssign] || ("V" + pt.voiceAssign)) : "");
     for (var c = 0; c < PCARDS.length; c++) $("pct" + c).textContent = pt && PCARDS[c].ty ? PCARDS[c].ty(pt) : "";
     for (var i = 0; i < WL.length; i++) if (WL[i].part === "sel") drawW(WL[i]);
     $("partBox").className = (s.loaded && s.source === "未読込") ? "stale" : "";
@@ -607,6 +629,7 @@
     for (var p = 1; p <= 16; p++) {
       var mu = s.loaded && s.parts[p].mute, m = MIXW[p];
       $("mxh" + p).className = "mxh" + (mu ? " muted" : "");
+      $("mxs" + p).style.opacity = mu ? ".6" : "";
       for (var k in m) { var el = $(m[k].id); el.className = el.className.replace(/ muted/g, "") + (mu ? " muted" : ""); drawW(m[k]); }
     }
     $("mixBox").className = (s.loaded && s.source === "未読込") ? "stale" : "";
@@ -622,7 +645,7 @@
     return null;
   }
   function mixStart(w, y, touchKey) {
-    if (w.kind === "filter" || w.kind === "env") return;
+    if (w.kind === "filter" || w.kind === "env" || w.kind === "sample") return;
     var el = $(w.id), p = wPart(w);
     if (!mixUsable()) { el.style.opacity = ".5"; setTimeout(function () { el.style.opacity = ""; }, 150); return; }
     if (w.kind === "toggle") { E2.setPart(p, w.f, E2.state.parts[p][w.f] ? 0 : 1); return; }
