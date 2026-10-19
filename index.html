@@ -39,6 +39,7 @@
   <span class="big">パターン <b id="gName">-</b></span>
   <span class="big">BPM <b id="gTempo">-</b></span>
   <span class="big">MFX <b id="gMfx">-</b></span>
+  <span class="big" id="play">-</span>
   <span class="dim" id="gLoaded">-</span>
   <button class="main" id="btnReload">読み直す</button>
   <span class="dim" id="ver">-</span>
@@ -74,7 +75,7 @@
   <textarea id="summary" readonly></textarea>
 </div>
 
-<script src="e2core.js?v=3"></script>
+<script src="e2core.js?v=4"></script>
 <script>
 (function () {
   function $(id) { return document.getElementById(id); }
@@ -156,6 +157,7 @@
       else if (st.busy) { dot.className = "dot busy"; $("conn").textContent = "読み込み中"; }
       else { dot.className = "dot ok"; $("conn").textContent = "接続中"; }
       $("ports").textContent = "入力：" + st.inNames.join(" / ") + "　出力：" + st.outName;
+      $("play").textContent = st.playing === true ? "▶ 再生中" : (st.playing === false ? "■ 停止中" : "再生状態 不明");
     } else if (type === "loaded") {
       renderAll();
     } else if (type === "part") {
@@ -183,14 +185,14 @@
   });
 
   // ---- ボタン ----
-  $("btnReload").onclick = function () { E2.requestDump("手動"); };
+  $("btnReload").onclick = function () { E2.reloadNow(); };
   $("mfxAllOn").onclick = function () { if (E2.state.loaded) E2.setAllParts("mfxSend", 1); };
   $("mfxAllOff").onclick = function () { if (E2.state.loaded) E2.setAllParts("mfxSend", 0); };
   $("optVerify").onchange = function () { E2.options.verifyAfterEdit = this.checked; };
   $("optAuto").onchange = function () { E2.options.autoReloadOnPattern = this.checked; };
   $("btnSummary").onclick = function () {
     var s = [], st = E2.state;
-    s.push("[e2 土台テスト / 画面 base-v3 / " + E2.version + "]");
+    s.push("[e2 土台テスト / 画面 base-v4 / " + E2.version + "]");
     s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
     if (st.loaded) s.push("全体: " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
     s.push("--- 照合 ---");
@@ -201,7 +203,7 @@
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
 
-  $("ver").textContent = "画面 base-v3 / " + E2.version;
+  $("ver").textContent = "画面 base-v4 / " + E2.version;
   buildTable();
   E2.start();
 })();

@@ -72,6 +72,7 @@
     inNames: [],
     outName: "",
     busy: false,            // ダンプ受信中
+    playing: null,          // 再生中 true / 停止中 false / 不明 null（e2 の再生開始・停止の信号で判断）
     pendingPattern: null    // 切替予約中のパターン番号（なければ null）
   };
   var options = {
@@ -80,7 +81,9 @@
     verifyAfterEdit: true,       // 操作が止まってから読み直して照合する
     verifyDelay: 1500,           // 何ミリ秒止まったら照合するか
     verifyMinInterval: 5000,     // 照合の読み直しは最短でもこの間隔をあける
-    pollInterval: 1000           // 切替待ちの読み直し間隔
+    pollInterval: 1000,          // 切替待ちの読み直し間隔
+    retryInterval: 250,          // 失敗したときの読み直し間隔
+    maxRetries: 8                // 切替待ち以外での読み直し回数の上限
   };
 
   // ---------------- 通知 ----------------
@@ -189,14 +192,20 @@
 
   function onMessage(ev) {
     var d = ev.data;
+    if (sx && sx.active) sx.events++;
     for (var i = 0; i < d.length; i++) feed(d[i]);
   }
   function feed(b) {
-    if (b >= 0xF8) return;                         // クロック等は無視
+    if (b >= 0xF8) {                               // リアルタイム系
+      if (b === 0xF8) { if (sx && sx.active) sx.clocks++; }
+      else if (b === 0xFA || b === 0xFB) setPlaying(true);
+      else if (b === 0xFC) setPlaying(false);
+      return;
+    }
     if (b === 0xF0) {
       if (sx && sx.active) abortSysex("次の SysEx が始まった");
       cm = null;
-      sx = { active: true, bytes: [0xF0] };
+      sx = { active: true, bytes: [0xF0], events: 1, clocks: 0, notes: 0 };
       return;
     }
     if (b === 0xF7) {
@@ -223,8 +232,16 @@
     failDump("中断");
   }
 
+  function setPlaying(v) {
+    if (status.playing === v) return;
+    status.playing = v;
+    emit("midi", ts() + (v ? " 再生開始" : " 停止"));
+    emit("status", status);
+  }
+  var noteCount = 0;
   function handleChannel(m) {
     var type = m[0] & 0xF0, ch = (m[0] & 0x0F) + 1;
+    if (type === 0x90) { noteCount++; return; }
     if (type === 0xB0) {
       emit("midi", ts() + " 受信 ch" + ch + " CC#" + m[1] + " = " + m[2]);
       var f = CC_TO_FIELD[m[1]];
@@ -246,7 +263,18 @@
   }
 
   // ---------------- ダンプ ----------------
-  var dumpTimer = null, dumpReason = "", dumpT0 = 0, pendingDump = null, retryCount = 0;
+  var dumpTimer = null, dumpReason = "", dumpT0 = 0, pendingDump = null, retryCount = 0, retryTimer = null;
+  var noteAtReq = 0, attemptPlaying = false;
+  var stats = { playTry: 0, playOk: 0, stopTry: 0, stopOk: 0 };
+  function attemptInfo() {
+    var a = (attemptPlaying ? "再生中" : "停止中");
+    if (sx) a += "、受信イベント " + sx.events + "、クロック " + sx.clocks;
+    a += "、発音 " + (noteCount - noteAtReq);
+    return a;
+  }
+  function statsText() {
+    return "成功率 再生中 " + stats.playOk + "/" + stats.playTry + "・停止中 " + stats.stopOk + "/" + stats.stopTry;
+  }
 
   function requestDump(reason, isRetry) {
     if (status.busy) { pendingDump = reason || "再要求"; return; }   // 受信中なら終わってからもう一度
@@ -255,6 +283,9 @@
     var msg = [0xF0, 0x42, 0x30 + options.globalCh - 1, 0x00, 0x01, PRODUCT_ID, 0x10, 0xF7];
     dumpReason = reason || "";
     dumpT0 = Date.now();
+    noteAtReq = noteCount;
+    attemptPlaying = status.playing === true;
+    if (attemptPlaying) stats.playTry++; else stats.stopTry++;
     if (!send(msg)) return;
     status.busy = true;
     emit("status", status);
@@ -267,21 +298,36 @@
     }, 5000);
   }
 
-  // 読み込み失敗：少し待って読み直す（最大2回）
+  // 読み込み失敗：少し待って読み直す
+  //   切替待ちの間は、切替予定時刻の5秒後まで成功するまで続ける。それ以外は options.maxRetries 回まで
   function failDump(why) {
     if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
     if (!status.busy) return;
     status.busy = false;
     emit("status", status);
-    if (retryCount < 2) {
+    var canRetry = pending ? (Date.now() < pending.at + pending.maxWait + 5000) : (retryCount < options.maxRetries);
+    if (canRetry) {
       retryCount++;
       var r = dumpReason;
-      emit("midi", ts() + " 読み直します（" + retryCount + "回目、" + why + "）");
-      setTimeout(function () { requestDump(r, true); }, 500);
+      emit("midi", ts() + " 読み直します（" + retryCount + "回目、" + why + "、" + attemptInfo() + "）");
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = setTimeout(function () { retryTimer = null; requestDump(r, true); }, options.retryInterval);
     } else {
-      emit("error", ts() + " 読み込みをあきらめました（" + dumpReason + "）。表示は前の値のままです");
+      emit("error", ts() + " 読み込みをあきらめました（" + dumpReason + "、" + retryCount + "回失敗、" + statsText() + "）。表示は前の値のままです");
+      if (pending) { pending = null; status.pendingPattern = null; emit("status", status); }
       if (pendingDump) { var p = pendingDump; pendingDump = null; requestDump(p); }
     }
+  }
+
+  // 手動の読み直し：進行中のものを打ち切って、すぐにやり直す
+  function reloadNow() {
+    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
+    if (sx && sx.active) sx.active = false;
+    status.busy = false;
+    pendingDump = null;
+    requestDump("手動");
   }
 
   function finishSysex(complete) {
@@ -301,7 +347,9 @@
       return;
     }
     status.busy = false;
+    if (attemptPlaying) stats.playOk++; else stats.stopOk++;
     var ms = Date.now() - dumpT0;
+    lastAttemptInfo = attemptInfo() + "、" + (retryCount ? retryCount + "回の失敗のあと" : "1回目で成功") + "、" + statsText();
     loadFromDump(data, ms);
     emit("status", status);
     if (pendingDump) { var r = pendingDump; pendingDump = null; requestDump(r); }
@@ -397,13 +445,14 @@
     var same = (fp === lastFingerprint);
     lastFingerprint = fp;
     var sincePc = lastPcAt ? " / 切替から " + ((Date.now() - lastPcAt) / 1000).toFixed(2) + "s" : "";
-    emit("midi", ts() + " 読込完了（" + dumpReason + "、" + ms + "ms、内容" + (same ? "は前回と同じ" : "が変化") + (unexplained > 0 ? "・CC で説明できない変化 " + unexplained + " バイト" : "") + sincePc + "）名前=" + g.name + " BPM=" + g.tempo);
+    emit("midi", ts() + " 読込完了（" + dumpReason + "、" + ms + "ms、内容" + (same ? "は前回と同じ" : "が変化") + (unexplained > 0 ? "・CC で説明できない変化 " + unexplained + " バイト" : "") + sincePc + "）名前=" + g.name + " BPM=" + g.tempo + "\n      " + lastAttemptInfo);
     emit("loaded", state);
     if (checked) emit("verify", { mismatches: mismatches, checked: checked });
   }
 
   // ---------------- 状態の更新と照合 ----------------
   var lastFingerprint = null;
+  var lastAttemptInfo = "";
   var lastData = null;       // 前回読んだダンプ
   var touched = {};          // 前回の読み込み以降に CC で変わったはずのバイト位置
   var pending = null;        // 切替待ち { program, at, maxWait }
@@ -468,7 +517,7 @@
 
   // ---------------- 公開 ----------------
   global.E2 = {
-    version: "core-v3",
+    version: "core-v4",
     FIELDS: FIELDS,
     state: state,
     status: status,
@@ -476,6 +525,8 @@
     on: on,
     start: start,
     requestDump: requestDump,
+    reloadNow: reloadNow,
+    stats: stats,
     setPart: setPart,
     setAllParts: setAllParts,
     setPad: setPad,
