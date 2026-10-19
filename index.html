@@ -41,6 +41,7 @@
   <span class="big">MFX <b id="gMfx">-</b></span>
   <span class="dim" id="gLoaded">-</span>
   <button class="main" id="btnReload">読み直す</button>
+  <span class="dim" id="ver">-</span>
 </div>
 
 <div class="box">
@@ -73,7 +74,7 @@
   <textarea id="summary" readonly></textarea>
 </div>
 
-<script src="e2core.js?v=2"></script>
+<script src="e2core.js?v=3"></script>
 <script>
 (function () {
   function $(id) { return document.getElementById(id); }
@@ -151,6 +152,7 @@
       if (st.midi === "unsupported") { dot.className = "dot ng"; $("conn").textContent = "Web MIDI 非対応"; }
       else if (st.midi === "denied") { dot.className = "dot ng"; $("conn").textContent = "MIDI 使用不可（SysEx 設定を確認）"; }
       else if (!st.outName) { dot.className = "dot ng"; $("conn").textContent = "e2 が見つかりません"; }
+      else if (st.pendingPattern !== null && st.pendingPattern !== undefined) { dot.className = "dot busy"; $("conn").textContent = "パターン " + (st.pendingPattern + 1) + " へ切替待ち"; }
       else if (st.busy) { dot.className = "dot busy"; $("conn").textContent = "読み込み中"; }
       else { dot.className = "dot ok"; $("conn").textContent = "接続中"; }
       $("ports").textContent = "入力：" + st.inNames.join(" / ") + "　出力：" + st.outName;
@@ -188,7 +190,7 @@
   $("optAuto").onchange = function () { E2.options.autoReloadOnPattern = this.checked; };
   $("btnSummary").onclick = function () {
     var s = [], st = E2.state;
-    s.push("[e2 土台テスト / " + E2.version + "]");
+    s.push("[e2 土台テスト / 画面 base-v3 / " + E2.version + "]");
     s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
     if (st.loaded) s.push("全体: " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
     s.push("--- 照合 ---");
@@ -199,6 +201,7 @@
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
 
+  $("ver").textContent = "画面 base-v3 / " + E2.version;
   buildTable();
   E2.start();
 })();

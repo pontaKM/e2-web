@@ -71,14 +71,16 @@
     midi: "starting",       // starting / ready / unsupported / denied
     inNames: [],
     outName: "",
-    busy: false             // ダンプ受信中
+    busy: false,            // ダンプ受信中
+    pendingPattern: null    // 切替予約中のパターン番号（なければ null）
   };
   var options = {
     globalCh: 1,            // MIDI GLOBAL CH（このe2は 1）
     autoReloadOnPattern: true,   // パターン切替（プログラムチェンジ）で読み直す
     verifyAfterEdit: true,       // 操作が止まってから読み直して照合する
     verifyDelay: 1500,           // 何ミリ秒止まったら照合するか
-    verifyMinInterval: 5000      // 照合の読み直しは最短でもこの間隔をあける
+    verifyMinInterval: 5000,     // 照合の読み直しは最短でもこの間隔をあける
+    pollInterval: 1000           // 切替待ちの読み直し間隔
   };
 
   // ---------------- 通知 ----------------
@@ -230,11 +232,8 @@
       if (f && state.loaded) applyPart(ch, f, ccToValue(f, m[2]), "e2");
     } else if (type === 0xC0) {
       lastPcAt = Date.now();
-      emit("midi", ts() + " 受信 ch" + ch + " プログラムチェンジ " + m[1]);
-      if (options.autoReloadOnPattern) {
-        cancelVerify();
-        setTimeout(function () { requestDump("パターン切替"); }, 300);
-      }
+      emit("midi", ts() + " 受信 ch" + ch + " プログラムチェンジ " + m[1] + "（パターン " + (m[1] + 1) + " へ切替予約）");
+      if (options.autoReloadOnPattern) startPatternWait(m[1]);
     }
   }
 
@@ -341,15 +340,40 @@
       mfxTypeName: MFX_TYPES[data[0x3D]] || ("#" + data[0x3D]),
       padX: data[0x3E], padY: data[0x3F],
       mfxHold: data[0x41] ? 1 : 0,
-      playLevel: 127 - data[0x2A]
+      playLevel: 127 - data[0x2A],
+      lengthBars: (data[0x25] & 3) + 1      // 0〜3 → 1〜4小節（実機の値 3 = 4小節と推定）
     };
     var parts = [null];
     for (var p = 1; p <= 16; p++) parts.push(readPart(data, p));
 
-    // 照合：操作で予測していた値と、実際に読んだ値を比べる
-    var checks = verifyQueue, mismatches = [], checked = 0;
-    verifyQueue = {};
-    if (state.loaded) {
+    // 前回読んだデータとの違いのうち、その間に届いた CC で説明できないもの＝パターンが替わった印
+    var unexplained = 0;
+    if (lastData) {
+      for (var o = 0; o < data.length; o++) if (data[o] !== lastData[o] && !touched[o]) unexplained++;
+    } else unexplained = -1;
+    lastData = data;
+    touched = {};
+    var switched = false;
+    if (pending) {
+      if (unexplained !== 0) {
+        switched = true;
+        emit("midi", ts() + " パターン " + (pending.program + 1) + " への切替を確認（予約から " + ((Date.now() - pending.at) / 1000).toFixed(1) + "s）");
+        pending = null;
+        verifyQueue = {};          // 切替前の操作は照合しない
+      } else if (Date.now() - pending.at < pending.maxWait) {
+        pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, options.pollInterval);
+      } else {
+        emit("midi", ts() + " 切替待ちを終了（" + (pending.maxWait / 1000).toFixed(1) + "s 内容に変化なし。同じ内容のパターンの可能性）");
+        pending = null;
+      }
+      status.pendingPattern = pending ? pending.program : null;
+      emit("status", status);
+    }
+
+    // 照合：操作で予測していた値と、実際に読んだ値を比べる（切替待ちの間はしない）
+    var checks = pending ? {} : verifyQueue, mismatches = [], checked = 0;
+    if (!pending) verifyQueue = {};
+    if (state.loaded && !switched) {
       for (var key in checks) {
         var c = checks[key];
         checked++;
@@ -373,18 +397,38 @@
     var same = (fp === lastFingerprint);
     lastFingerprint = fp;
     var sincePc = lastPcAt ? " / 切替から " + ((Date.now() - lastPcAt) / 1000).toFixed(2) + "s" : "";
-    emit("midi", ts() + " 読込完了（" + dumpReason + "、" + ms + "ms、内容" + (same ? "は前回と同じ" : "が変化") + sincePc + "）名前=" + g.name + " BPM=" + g.tempo);
+    emit("midi", ts() + " 読込完了（" + dumpReason + "、" + ms + "ms、内容" + (same ? "は前回と同じ" : "が変化") + (unexplained > 0 ? "・CC で説明できない変化 " + unexplained + " バイト" : "") + sincePc + "）名前=" + g.name + " BPM=" + g.tempo);
     emit("loaded", state);
     if (checked) emit("verify", { mismatches: mismatches, checked: checked });
   }
 
   // ---------------- 状態の更新と照合 ----------------
   var lastFingerprint = null;
+  var lastData = null;       // 前回読んだダンプ
+  var touched = {};          // 前回の読み込み以降に CC で変わったはずのバイト位置
+  var pending = null;        // 切替待ち { program, at, maxWait }
+  var pollTimer = null;
+
+  // パターン切替の予約を受けたら、内容が変わるまで読み直し続ける
+  function startPatternWait(program) {
+    cancelVerify();
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    var g = state.global || {};
+    var bars = (g.lengthBars || 4), bpm = g.tempo || 60;
+    var maxWait = Math.round(bars * 4 * 60000 / bpm) + 2000;     // 最長で1パターン分＋余裕
+    if (maxWait < 3000) maxWait = 3000;
+    if (maxWait > 40000) maxWait = 40000;
+    pending = { program: program, at: Date.now(), maxWait: maxWait };
+    status.pendingPattern = program;
+    emit("status", status);
+    pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, 300);
+  }
   var verifyQueue = {};      // "パート:項目" → {part, field, value, cc, source}
   var verifyTimer = null;
 
   function applyPart(p, field, value, source) {
     if (!state.loaded || !state.parts[p]) return;
+    touched[PART_BASE + PART_LEN * (p - 1) + FIELDS[field].off] = true;
     state.parts[p][field] = value;
     emit("part", { part: p, field: field, value: value, source: source });
     verifyQueue[p + ":" + field] = { part: p, field: field, value: value, cc: valueToCc(field, value), source: source };
@@ -392,6 +436,7 @@
   }
   function scheduleVerify() {
     if (!options.verifyAfterEdit) { verifyQueue = {}; return; }
+    if (pending) return;       // 切替待ちの読み直しが続いている間は不要
     if (verifyTimer) clearTimeout(verifyTimer);
     var wait = options.verifyDelay;
     var gap = state.loadedAt ? (state.loadedAt.getTime() + options.verifyMinInterval - Date.now()) : 0;
@@ -423,7 +468,7 @@
 
   // ---------------- 公開 ----------------
   global.E2 = {
-    version: "core-v2",
+    version: "core-v3",
     FIELDS: FIELDS,
     state: state,
     status: status,
