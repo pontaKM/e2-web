@@ -58,7 +58,7 @@
 
 <div class="box">
   <h2>照合（予測した値と、読み直した実際の値の比較）</h2>
-  <label><input type="checkbox" id="optVerify" checked>操作が止まって 1.5 秒後に読み直して照合する</label>
+  <label><input type="checkbox" id="optVerify" checked>操作が止まって 1.5 秒後に読み直して照合する（再生中は停止時にまとめて）</label>
   <label><input type="checkbox" id="optAuto" checked>パターン切替で読み直す</label>
   <pre id="verifyLog">まだ照合していません</pre>
 </div>
@@ -75,7 +75,7 @@
   <textarea id="summary" readonly></textarea>
 </div>
 
-<script src="e2core.js?v=4"></script>
+<script src="e2core.js?v=5"></script>
 <script>
 (function () {
   function $(id) { return document.getElementById(id); }
@@ -192,18 +192,18 @@
   $("optAuto").onchange = function () { E2.options.autoReloadOnPattern = this.checked; };
   $("btnSummary").onclick = function () {
     var s = [], st = E2.state;
-    s.push("[e2 土台テスト / 画面 base-v4 / " + E2.version + "]");
+    s.push("[e2 土台テスト / 画面 base-v5 / " + E2.version + "]");
     s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
     if (st.loaded) s.push("全体: " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
     s.push("--- 照合 ---");
     s.push(verifyLines.slice(0, 30).join("\n") || "なし");
     s.push("--- MIDI ---");
-    s.push(midiLines.slice(0, 40).join("\n"));
+    s.push(midiLines.slice(0, 70).join("\n"));
     $("summary").value = s.join("\n");
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
 
-  $("ver").textContent = "画面 base-v4 / " + E2.version;
+  $("ver").textContent = "画面 base-v5 / " + E2.version;
   buildTable();
   E2.start();
 })();

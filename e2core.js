@@ -83,7 +83,9 @@
     verifyMinInterval: 5000,     // 照合の読み直しは最短でもこの間隔をあける
     pollInterval: 1000,          // 切替待ちの読み直し間隔
     retryInterval: 250,          // 失敗したときの読み直し間隔
-    maxRetries: 8                // 切替待ち以外での読み直し回数の上限
+    maxRetries: 8,               // 切替待ち以外での読み直し回数の上限
+    verifyWhilePlaying: false,   // 再生中も照合の読み直しをするか（音の乱れを避けるため既定は しない）
+    afterSwitchDelay: 150        // 予測した切替時刻の何ミリ秒後に読むか
   };
 
   // ---------------- 通知 ----------------
@@ -192,13 +194,15 @@
 
   function onMessage(ev) {
     var d = ev.data;
+    if (d.length && d[0] < 0x80 && !(sx && sx.active)) { orphan(d); return; }
     if (sx && sx.active) sx.events++;
     for (var i = 0; i < d.length; i++) feed(d[i]);
   }
   function feed(b) {
     if (b >= 0xF8) {                               // リアルタイム系
       if (b === 0xF8) { if (sx && sx.active) sx.clocks++; }
-      else if (b === 0xFA || b === 0xFB) setPlaying(true);
+      else if (b === 0xFA) setPlaying(true, true);
+      else if (b === 0xFB) { loopStart = null; setPlaying(true); }
       else if (b === 0xFC) setPlaying(false);
       return;
     }
@@ -232,13 +236,27 @@
     failDump("中断");
   }
 
-  function setPlaying(v) {
+  var loopStart = null;      // 今のパターンのループが始まった時刻（分かるときだけ）
+  function setPlaying(v, fromStart) {
+    if (v && fromStart) loopStart = Date.now();
+    if (!v) loopStart = null;
     if (status.playing === v) return;
     status.playing = v;
+    if (!v && hasQueue()) scheduleVerify();     // 停止したら、再生中にためた照合を行う
     emit("midi", ts() + (v ? " 再生開始" : " 停止"));
     emit("status", status);
   }
   var noteCount = 0;
+  // ステータスバイトなしで始まる受信（＝どこかのメッセージの断片）を記録する
+  var orphanBytes = 0, orphanEvents = 0, orphanLastLog = 0;
+  function orphan(d) {
+    orphanBytes += d.length; orphanEvents++;
+    var now = Date.now();
+    if (now - orphanLastLog > 40) {      // 記録が多くなりすぎないよう、40ms 以内の連続はまとめる
+      orphanLastLog = now;
+      emit("midi", ts() + " はぐれデータ " + d.length + " バイト 先頭 " + hexArr(d, 4) + "（累計 " + orphanEvents + " 件 " + orphanBytes + " バイト）");
+    }
+  }
   function handleChannel(m) {
     var type = m[0] & 0xF0, ch = (m[0] & 0x0F) + 1;
     if (type === 0x90) { noteCount++; return; }
@@ -264,12 +282,12 @@
 
   // ---------------- ダンプ ----------------
   var dumpTimer = null, dumpReason = "", dumpT0 = 0, pendingDump = null, retryCount = 0, retryTimer = null;
-  var noteAtReq = 0, attemptPlaying = false;
+  var noteAtReq = 0, orphanAtReq = 0, attemptPlaying = false;
   var stats = { playTry: 0, playOk: 0, stopTry: 0, stopOk: 0 };
   function attemptInfo() {
     var a = (attemptPlaying ? "再生中" : "停止中");
     if (sx) a += "、受信イベント " + sx.events + "、クロック " + sx.clocks;
-    a += "、発音 " + (noteCount - noteAtReq);
+    a += "、発音 " + (noteCount - noteAtReq) + "、はぐれ " + (orphanBytes - orphanAtReq) + " バイト";
     return a;
   }
   function statsText() {
@@ -284,6 +302,7 @@
     dumpReason = reason || "";
     dumpT0 = Date.now();
     noteAtReq = noteCount;
+    orphanAtReq = orphanBytes;
     attemptPlaying = status.playing === true;
     if (attemptPlaying) stats.playTry++; else stats.stopTry++;
     if (!send(msg)) return;
@@ -342,7 +361,7 @@
     if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
     var data = decode7(b.slice(7, b.length - 1));
     if (data.length !== DUMP_SIZE) {
-      emit("error", ts() + " ダンプが不完全：" + b.length + " バイト（本来 18733）。末尾 " + hexArr(b.slice(-6)));
+      emit("error", ts() + " ダンプが不完全：" + b.length + " バイト（本来 18733、欠け " + (18733 - b.length) + "）。先頭から 7〜12 " + hexArr(b.slice(7, 13)) + " 末尾 " + hexArr(b.slice(-6)));
       failDump("不完全");
       return;
     }
@@ -389,7 +408,8 @@
       padX: data[0x3E], padY: data[0x3F],
       mfxHold: data[0x41] ? 1 : 0,
       playLevel: 127 - data[0x2A],
-      lengthBars: (data[0x25] & 3) + 1      // 0〜3 → 1〜4小節（実機の値 3 = 4小節と推定）
+      lengthBars: (data[0x25] & 3) + 1,     // 0〜3 → 1〜4小節（実機の値 3 = 4小節と推定）
+      beat: data[0x26] & 3                  // 0=16分 1=32分 2=8分3連 3=16分3連
     };
     var parts = [null];
     for (var p = 1; p <= 16; p++) parts.push(readPart(data, p));
@@ -405,11 +425,18 @@
     if (pending) {
       if (unexplained !== 0) {
         switched = true;
-        emit("midi", ts() + " パターン " + (pending.program + 1) + " への切替を確認（予約から " + ((Date.now() - pending.at) / 1000).toFixed(1) + "s）");
+        emit("midi", ts() + " パターン " + (pending.program + 1) + " への切替を確認（予約から " + ((Date.now() - pending.at) / 1000).toFixed(1) + "s" +
+             (pending.predicted ? "、予測との差 " + ((dumpT0 - pending.predicted) / 1000).toFixed(2) + "s" : "") + "）");
+        // 予測の直後に読んで切替を確認できたら、その時刻を新しいループの始まりとする
+        if (status.playing) loopStart = (pending.predicted && Math.abs(dumpT0 - pending.predicted) < 2000) ? pending.predicted : null;
         pending = null;
         verifyQueue = {};          // 切替前の操作は照合しない
       } else if (Date.now() - pending.at < pending.maxWait) {
-        pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, options.pollInterval);
+        // まだ切り替わっていない：予測時刻がこの先ならそこまで待つ。過ぎていれば（予測が外れた）1秒おきに読む
+        var wait = options.pollInterval;
+        if (pending.predicted && pending.predicted > Date.now()) wait = pending.predicted - Date.now() + options.afterSwitchDelay;
+        else if (pending.predicted) { emit("midi", ts() + " 予測時刻を過ぎても切り替わっていません（予測を中止して1秒おきに確認）"); pending.predicted = null; loopStart = null; }
+        pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, wait);
       } else {
         emit("midi", ts() + " 切替待ちを終了（" + (pending.maxWait / 1000).toFixed(1) + "s 内容に変化なし。同じ内容のパターンの可能性）");
         pending = null;
@@ -459,18 +486,37 @@
   var pollTimer = null;
 
   // パターン切替の予約を受けたら、内容が変わるまで読み直し続ける
+  // パターン1周の長さ（ミリ秒）。1小節 = 16ステップ、1ステップの長さは BEAT 設定による
+  function patternMs(g) {
+    if (!g || !g.tempo) return 0;
+    var div = [4, 8, 3, 6][g.beat] || 4;          // 16分 / 32分 / 8分3連 / 16分3連 → 1拍あたりのステップ数
+    return Math.round((g.lengthBars || 4) * 16 * (60000 / g.tempo) / div);
+  }
+  // 次のループの区切り（＝予約したパターンに切り替わる時刻）を予測する
+  function predictSwitch() {
+    var dur = patternMs(state.global);
+    if (!status.playing || loopStart === null || !dur) return null;
+    var now = Date.now();
+    var n = Math.ceil((now - loopStart) / dur);
+    var t = loopStart + n * dur;
+    return t;
+  }
   function startPatternWait(program) {
     cancelVerify();
     if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-    var g = state.global || {};
-    var bars = (g.lengthBars || 4), bpm = g.tempo || 60;
-    var maxWait = Math.round(bars * 4 * 60000 / bpm) + 2000;     // 最長で1パターン分＋余裕
+    var dur = patternMs(state.global);
+    var now = Date.now();
+    var predicted = predictSwitch();
+    var maxWait = (predicted ? predicted - now : (dur || 8000)) + 3000;
     if (maxWait < 3000) maxWait = 3000;
     if (maxWait > 40000) maxWait = 40000;
-    pending = { program: program, at: Date.now(), maxWait: maxWait };
+    pending = { program: program, at: now, maxWait: maxWait, predicted: predicted };
     status.pendingPattern = program;
     emit("status", status);
-    pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, 300);
+    var first = 300;
+    if (status.playing && predicted) first = Math.max(predicted - now + options.afterSwitchDelay, 50);
+    emit("midi", ts() + (predicted ? " 切替予定 " + ((predicted - now) / 1000).toFixed(2) + "s 後（その直後に読みます）" : " 切替時刻は不明（" + (status.playing ? "再生開始を見ていないため" : "停止中") + "）"));
+    pollTimer = setTimeout(function () { pollTimer = null; requestDump("切替待ち"); }, first);
   }
   var verifyQueue = {};      // "パート:項目" → {part, field, value, cc, source}
   var verifyTimer = null;
@@ -486,12 +532,14 @@
   function scheduleVerify() {
     if (!options.verifyAfterEdit) { verifyQueue = {}; return; }
     if (pending) return;       // 切替待ちの読み直しが続いている間は不要
+    if (status.playing && !options.verifyWhilePlaying) return;   // 再生中はためておき、停止時に照合
     if (verifyTimer) clearTimeout(verifyTimer);
     var wait = options.verifyDelay;
     var gap = state.loadedAt ? (state.loadedAt.getTime() + options.verifyMinInterval - Date.now()) : 0;
     if (gap > wait) wait = gap;
     verifyTimer = setTimeout(function () { verifyTimer = null; requestDump("照合"); }, wait);
   }
+  function hasQueue() { for (var k in verifyQueue) return true; return false; }
   function cancelVerify() { if (verifyTimer) { clearTimeout(verifyTimer); verifyTimer = null; } }
 
   // ---------------- 送信（画面から呼ぶ） ----------------
@@ -517,7 +565,7 @@
 
   // ---------------- 公開 ----------------
   global.E2 = {
-    version: "core-v4",
+    version: "core-v5",
     FIELDS: FIELDS,
     state: state,
     status: status,
