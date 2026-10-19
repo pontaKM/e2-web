@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>e2 MIDI 確認ページ</title>
+<style>
+  body { margin:0; padding:12px; background:#1b1d21; color:#e8e8e8; font-family:-apple-system, "Hiragino Sans", sans-serif; font-size:16px; }
+  h1 { font-size:20px; margin:4px 0 12px; }
+  h2 { font-size:17px; margin:0 0 8px; color:#9fd0ff; }
+  .box { background:#262a30; border-radius:10px; padding:12px; margin-bottom:12px; }
+  .row { margin:6px 0; }
+  select, button, input[type=number] { font-size:17px; padding:10px 12px; border-radius:8px; border:1px solid #555; background:#33383f; color:#fff; }
+  button { min-width:120px; margin:4px 6px 4px 0; }
+  button.main { background:#2d6cdf; border-color:#2d6cdf; font-weight:bold; }
+  label { margin-right:14px; display:inline-block; padding:6px 0; }
+  input[type=radio], input[type=checkbox] { transform:scale(1.4); margin-right:8px; }
+  .ok { color:#6be38a; font-weight:bold; }
+  .ng { color:#ff7a7a; font-weight:bold; }
+  .dim { color:#999; font-size:14px; }
+  pre, .log { background:#111316; border-radius:8px; padding:8px; font-family:Menlo, monospace; font-size:13px; white-space:pre-wrap; word-break:break-all; margin:6px 0 0; }
+  .log { height:220px; overflow-y:auto; }
+  table { border-collapse:collapse; width:100%; font-size:15px; }
+  td { padding:5px 4px; border-bottom:1px solid #3a3f46; }
+  td.k { color:#aaa; width:42%; }
+  textarea { width:100%; height:150px; box-sizing:border-box; background:#111316; color:#e8e8e8; border-radius:8px; border:1px solid #444; font-family:Menlo, monospace; font-size:12px; }
+</style>
+</head>
+<body>
+<h1>e2 MIDI 確認ページ <span class="dim">v1</span></h1>
+
+<div class="box">
+  <h2>1. MIDI ポート</h2>
+  <div id="status" class="row">起動中…</div>
+  <div class="row">入力：<span id="inList" class="dim">-</span></div>
+  <div class="row">出力：<select id="outSel"></select></div>
+</div>
+
+<div class="box">
+  <h2>2. 受信した CC（本体のつまみを回してください）</h2>
+  <div class="row" id="lastCC" style="font-size:22px;">-</div>
+  <div class="log" id="ccLog"></div>
+  <div class="row">
+    <button id="btnTestOn">送信テスト ch1 MFX Send On</button>
+    <button id="btnTestOff">ch1 MFX Send Off</button>
+  </div>
+  <div class="dim">送信テストは、パート1の MFX Send（CC#105）を切り替えます。TouchOSC と同じ動きになれば出力も正常です。</div>
+</div>
+
+<div class="box">
+  <h2>3. パターンデータのダンプ要求</h2>
+  <div class="row">
+    製品ID：
+    <label><input type="radio" name="pid" value="24" checked>24（hacktribe）</label>
+    <label><input type="radio" name="pid" value="23">23（標準 e2）</label>
+  </div>
+  <div class="row">グローバル ch：<input type="number" id="gch" min="1" max="16" value="1" style="width:70px;"></div>
+  <div class="row"><label><input type="checkbox" id="autoReq">パターン切替（プログラムチェンジ受信）で自動要求</label></div>
+  <div class="row"><button class="main" id="btnDump">ダンプ要求</button></div>
+  <table id="dumpTable">
+    <tr><td class="k">状態</td><td id="dState">-</td></tr>
+    <tr><td class="k">送信したメッセージ</td><td id="dSent">-</td></tr>
+    <tr><td class="k">受信バイト数（F0〜F7）</td><td id="dBytes">-</td></tr>
+    <tr><td class="k">分割されて届いた回数</td><td id="dChunks">-</td></tr>
+    <tr><td class="k">最初の応答までの時間</td><td id="dFirst">-</td></tr>
+    <tr><td class="k">受信完了までの時間</td><td id="dTime">-</td></tr>
+    <tr><td class="k">F0〜F7 がそろったか</td><td id="dComplete">-</td></tr>
+    <tr><td class="k">応答の種類</td><td id="dFunc">-</td></tr>
+    <tr><td class="k">デコード後のサイズ</td><td id="dDecoded">-</td></tr>
+  </table>
+  <div class="row dim">デコード後の先頭 64 バイト（16進と文字）</div>
+  <pre id="dHead">-</pre>
+</div>
+
+<div class="box">
+  <h2>4. 結果まとめ（Claude に貼り付ける用）</h2>
+  <div class="row"><button id="btnSummary">まとめを作る</button><button id="btnSelect">全選択</button></div>
+  <textarea id="summary" readonly></textarea>
+  <div class="dim">「全選択」→ 長押しで「コピー」して、チャットに貼り付けてください。</div>
+</div>
+
+<script>
+(function () {
+  var midi = null;
+  var inputs = [];
+  var outputs = [];
+  var ccLines = [];
+  var ccCount = 0;
+  var otherCount = 0;
+  var pcLines = [];
+
+  var CC_NAMES = {
+    7:"Level", 10:"Pan", 71:"Resonance", 72:"EG Decay/Release", 73:"EG Attack",
+    74:"Cutoff", 80:"Osc Pitch", 81:"Glide", 82:"Osc Edit", 83:"Filter EG Int",
+    85:"Mod Depth", 86:"Mod Speed", 87:"IFX Edit", 104:"IFX On/Off",
+    105:"MFX Send", 102:"Pad X", 103:"Pad Y", 106:"Pad On/Off"
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+  function hex2(n) { var s = n.toString(16).toUpperCase(); return s.length < 2 ? "0" + s : s; }
+  function hexArr(a, max) {
+    var out = [], n = Math.min(a.length, max || a.length);
+    for (var i = 0; i < n; i++) out.push(hex2(a[i]));
+    if (a.length > n) out.push("…");
+    return out.join(" ");
+  }
+  function toList(m) {
+    var a = [];
+    if (!m) return a;
+    if (typeof m === "function") m = m();
+    if (m.forEach) { m.forEach(function (p) { a.push(p); }); return a; }
+    if (m.length !== undefined) { for (var i = 0; i < m.length; i++) a.push(m[i]); }
+    return a;
+  }
+
+  // ---------- 起動 ----------
+  if (!navigator.requestMIDIAccess) {
+    $("status").innerHTML = '<span class="ng">このブラウザは Web MIDI に対応していません。Web MIDI Browser アプリで開いてください。</span>';
+    return;
+  }
+  navigator.requestMIDIAccess({ sysex: true }).then(function (access) {
+    midi = access;
+    $("status").innerHTML = '<span class="ok">Web MIDI 使用可能（SysEx 許可あり）</span>';
+    refreshPorts();
+    midi.onstatechange = function () { refreshPorts(); };
+  }, function (err) {
+    $("status").innerHTML = '<span class="ng">MIDI を使えませんでした：' + err + '</span><br>Web MIDI Browser の設定で SysEx を有効にしてから、ページを再読み込みしてください。';
+  });
+
+  function refreshPorts() {
+    inputs = toList(midi.inputs);
+    outputs = toList(midi.outputs);
+    var names = [];
+    for (var i = 0; i < inputs.length; i++) {
+      names.push(inputs[i].name);
+      inputs[i].onmidimessage = onMessage;
+    }
+    $("inList").textContent = names.length ? names.join(" / ") : "（なし）";
+    $("inList").className = names.length ? "" : "ng";
+
+    var sel = $("outSel"), prev = sel.value, html = "", pick = "";
+    for (var j = 0; j < outputs.length; j++) {
+      html += '<option value="' + j + '">' + outputs[j].name + '</option>';
+      if (!pick && /electribe|e2/i.test(outputs[j].name)) pick = String(j);
+    }
+    sel.innerHTML = html || '<option value="">（なし）</option>';
+    if (prev && outputs[prev]) sel.value = prev; else if (pick) sel.value = pick;
+  }
+
+  function currentOut() {
+    var v = $("outSel").value;
+    return (v === "" || !outputs[v]) ? null : outputs[v];
+  }
+  function sendMsg(arr) {
+    var o = currentOut();
+    if (!o) { alert("出力ポートがありません"); return false; }
+    try { o.send(arr); return true; }
+    catch (e) { alert("送信エラー：" + e); return false; }
+  }
+
+  // ---------- 受信 ----------
+  var sx = null; // 受信中の SysEx
+  function onMessage(ev) {
+    var d = ev.data;
+    var i = 0;
+    // SysEx の途中（分割されて届いた場合）
+    if (sx && sx.active) {
+      sx.chunks++;
+      for (i = 0; i < d.length; i++) {
+        var b = d[i];
+        if (b >= 0xF8) continue; // リアルタイム系は無視
+        sx.bytes.push(b);
+        if (b === 0xF7) { finishSysex(true); return; }
+      }
+      return;
+    }
+    if (!d.length) return;
+    var st = d[0];
+    if (st === 0xF0) {
+      startSysex();
+      sx.chunks = 1;
+      for (i = 0; i < d.length; i++) {
+        if (d[i] >= 0xF8) continue;
+        sx.bytes.push(d[i]);
+        if (d[i] === 0xF7) { finishSysex(true); return; }
+      }
+      return;
+    }
+    if (st >= 0xF8) return; // クロック・アクティブセンシング
+    var type = st & 0xF0, ch = (st & 0x0F) + 1;
+    if (type === 0xB0) {
+      ccCount++;
+      var name = CC_NAMES[d[1]] ? " " + CC_NAMES[d[1]] : "";
+      var line = "ch" + ch + "  CC#" + d[1] + name + " = " + d[2];
+      $("lastCC").textContent = line;
+      addLog(line);
+    } else if (type === 0xC0) {
+      var pl = "ch" + ch + "  プログラムチェンジ " + d[1] + "（パターン切替）";
+      pcLines.push(pl);
+      addLog(pl);
+      if ($("autoReq").checked && ch === getGch()) {
+        setTimeout(requestDump, 300);
+      }
+    } else {
+      otherCount++;
+      addLog("その他: " + hexArr(d, 8));
+    }
+  }
+  function addLog(line) {
+    ccLines.unshift(line);
+    if (ccLines.length > 60) ccLines.length = 60;
+    $("ccLog").textContent = ccLines.join("\n");
+  }
+
+  // ---------- ダンプ ----------
+  var req = null; // 直近の要求
+  var timer = null;
+  function getGch() {
+    var c = parseInt($("gch").value, 10);
+    if (!(c >= 1 && c <= 16)) c = 1;
+    return c;
+  }
+  function getPid() {
+    var r = document.getElementsByName("pid");
+    for (var i = 0; i < r.length; i++) if (r[i].checked) return parseInt(r[i].value, 16);
+    return 0x24;
+  }
+  function requestDump() {
+    var msg = [0xF0, 0x42, 0x30 + getGch() - 1, 0x00, 0x01, getPid(), 0x10, 0xF7];
+    clearResult();
+    req = { t0: now(), msg: msg, pid: getPid() };
+    $("dSent").textContent = hexArr(msg);
+    $("dState").textContent = "要求を送信しました。応答待ち…";
+    if (!sendMsg(msg)) { $("dState").innerHTML = '<span class="ng">送信できませんでした</span>'; return; }
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (sx && sx.active) {
+        finishSysex(false);
+      } else if (!sx) {
+        $("dState").innerHTML = '<span class="ng">10秒待っても応答がありません</span>（製品ID・グローバル ch・出力ポートを確認してください）';
+      }
+    }, 10000);
+  }
+  function startSysex() {
+    sx = { active: true, bytes: [], chunks: 0, tFirst: now() };
+    if (req) $("dFirst").textContent = Math.round(sx.tFirst - req.t0) + " ms";
+    $("dState").textContent = "受信中…";
+  }
+  function finishSysex(complete) {
+    sx.active = false;
+    sx.tEnd = now();
+    if (timer) { clearTimeout(timer); timer = null; }
+    var b = sx.bytes;
+    $("dBytes").textContent = b.length + " バイト";
+    $("dChunks").textContent = sx.chunks + " 回";
+    if (req) $("dTime").textContent = Math.round(sx.tEnd - req.t0) + " ms";
+    $("dComplete").innerHTML = complete
+      ? '<span class="ok">そろっています（F0 で始まり F7 で終わる）</span>'
+      : '<span class="ng">途中で切れました（F7 が届かず 10 秒経過）</span>';
+
+    var isKorg = b[0] === 0xF0 && b[1] === 0x42 && b[3] === 0x00 && b[4] === 0x01;
+    var func = b[6];
+    if (!isKorg) {
+      $("dFunc").textContent = "KORG e2 以外の SysEx：" + hexArr(b, 12);
+    } else {
+      var fname = (func === 0x40) ? "0x40 Current Pattern Data Dump（期待どおり）" : "0x" + hex2(func) + "（ダンプ以外の応答）";
+      $("dFunc").innerHTML = (func === 0x40 ? '<span class="ok">' : '<span class="ng">') + fname + "</span>　製品ID 0x" + hex2(b[5]);
+    }
+    if (isKorg && func === 0x40 && complete) {
+      var data = decode7(b.slice(7, b.length - 1));
+      var good = data.length === 0x4000;
+      $("dDecoded").innerHTML = data.length + " バイト " + (good ? '<span class="ok">（0x4000 と一致）</span>' : '<span class="ng">（0x4000 = 16384 と不一致）</span>');
+      $("dHead").textContent = dumpView(data.slice(0, 64));
+      $("dState").innerHTML = good ? '<span class="ok">成功</span>' : '<span class="ng">サイズが想定と違います</span>';
+      window.lastPattern = data; // 次の段階（デコード表示）用
+    } else {
+      $("dDecoded").textContent = "-";
+      $("dHead").textContent = "受信データ先頭：" + hexArr(b, 32);
+      $("dState").innerHTML = '<span class="ng">ダンプを受け取れませんでした</span>';
+    }
+    req = null;
+  }
+
+  // KORG の 7bit エンコード：8バイトごとに先頭1バイトが後続7バイトの MSB
+  function decode7(src) {
+    var out = [];
+    for (var i = 0; i < src.length; i += 8) {
+      var msb = src[i];
+      for (var j = 0; j < 7 && i + 1 + j < src.length; j++) {
+        out.push(src[i + 1 + j] | (((msb >> j) & 1) << 7));
+      }
+    }
+    return out;
+  }
+  function dumpView(a) {
+    var lines = [];
+    for (var i = 0; i < a.length; i += 16) {
+      var row = a.slice(i, i + 16), txt = "";
+      for (var k = 0; k < row.length; k++) txt += (row[k] >= 0x20 && row[k] < 0x7F) ? String.fromCharCode(row[k]) : ".";
+      var off = i.toString(16).toUpperCase(); while (off.length < 4) off = "0" + off;
+      lines.push(off + "  " + hexArr(row) + "  " + txt);
+    }
+    return lines.join("\n");
+  }
+  function clearResult() {
+    sx = null;
+    var ids = ["dBytes", "dChunks", "dFirst", "dTime", "dComplete", "dFunc", "dDecoded"];
+    for (var i = 0; i < ids.length; i++) $(ids[i]).textContent = "-";
+    $("dHead").textContent = "-";
+  }
+
+  // ---------- ボタン ----------
+  $("btnDump").onclick = requestDump;
+  $("btnTestOn").onclick = function () { sendMsg([0xB0, 105, 127]); };
+  $("btnTestOff").onclick = function () { sendMsg([0xB0, 105, 0]); };
+  $("btnSummary").onclick = function () {
+    function t(id) { return $(id).textContent; }
+    var s = [];
+    s.push("[e2 MIDI 確認ページ v1 の結果]");
+    s.push("UA: " + navigator.userAgent);
+    s.push("MIDI状態: " + t("status"));
+    s.push("入力ポート: " + t("inList"));
+    var o = currentOut(); s.push("出力ポート: " + (o ? o.name : "なし"));
+    s.push("CC受信数: " + ccCount + " / その他: " + otherCount);
+    s.push("最近の受信: " + ccLines.slice(0, 5).join(" | "));
+    s.push("--- ダンプ ---");
+    s.push("状態: " + t("dState"));
+    s.push("送信: " + t("dSent"));
+    s.push("受信バイト: " + t("dBytes") + " / 分割: " + t("dChunks"));
+    s.push("最初の応答: " + t("dFirst") + " / 完了: " + t("dTime"));
+    s.push("F0〜F7: " + t("dComplete"));
+    s.push("応答: " + t("dFunc"));
+    s.push("デコード後: " + t("dDecoded"));
+    s.push("先頭64バイト:\n" + t("dHead"));
+    $("summary").value = s.join("\n");
+  };
+  $("btnSelect").onclick = function () {
+    var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length);
+  };
+})();
+</script>
+</body>
+</html>
