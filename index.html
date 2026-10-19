@@ -73,7 +73,7 @@
   <textarea id="summary" readonly></textarea>
 </div>
 
-<script src="e2core.js?v=1"></script>
+<script src="e2core.js?v=2"></script>
 <script>
 (function () {
   function $(id) { return document.getElementById(id); }
@@ -165,14 +165,14 @@
       } else {
         for (var i = 0; i < d.mismatches.length; i++) {
           var m = d.mismatches[i];
-          verifyLines.unshift(t + "  ✗ パート" + m.part + " " + m.field + "：予測 " + m.expected + " / 実際 " + m.actual + "（CC " + m.cc + "、" + (m.source === "e2" ? "本体の操作" : "画面の操作") + "）");
+          verifyLines.unshift(t + "  ✗ パート" + m.part + " " + m.field + "：予測 " + m.expected + " / 実際 " + m.actual + "（CC " + m.cc + "、" + (m.source === "e2" ? "本体の操作" : "画面の操作") + "）" + (m.history ? "\n      直前の CC: " + m.history : ""));
         }
       }
       if (verifyLines.length > 40) verifyLines.length = 40;
       $("verifyLog").textContent = verifyLines.join("\n");
     } else if (type === "midi") {
       midiLines.unshift(d);
-      if (midiLines.length > 50) midiLines.length = 50;
+      if (midiLines.length > 100) midiLines.length = 100;
       $("midiLog").textContent = midiLines.join("\n");
     } else if (type === "error") {
       midiLines.unshift("⚠ " + d);
@@ -192,9 +192,9 @@
     s.push("接続: " + $("conn").textContent + " / " + $("ports").textContent);
     if (st.loaded) s.push("全体: " + st.global.name + " BPM " + st.global.tempo + " MFX " + st.global.mfxTypeName + " / " + $("gLoaded").textContent);
     s.push("--- 照合 ---");
-    s.push(verifyLines.slice(0, 20).join("\n") || "なし");
+    s.push(verifyLines.slice(0, 30).join("\n") || "なし");
     s.push("--- MIDI ---");
-    s.push(midiLines.slice(0, 15).join("\n"));
+    s.push(midiLines.slice(0, 40).join("\n"));
     $("summary").value = s.join("\n");
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };

@@ -77,7 +77,8 @@
     globalCh: 1,            // MIDI GLOBAL CH（このe2は 1）
     autoReloadOnPattern: true,   // パターン切替（プログラムチェンジ）で読み直す
     verifyAfterEdit: true,       // 操作が止まってから読み直して照合する
-    verifyDelay: 1500            // 何ミリ秒止まったら照合するか
+    verifyDelay: 1500,           // 何ミリ秒止まったら照合するか
+    verifyMinInterval: 5000      // 照合の読み直しは最短でもこの間隔をあける
   };
 
   // ---------------- 通知 ----------------
@@ -177,36 +178,59 @@
   }
 
   // ---------------- 受信 ----------------
-  var sx = null;   // 受信中の SysEx { bytes, active, t0 }
+  // 受け取ったバイトを1つずつ解釈する（古いアプリで分割・連結されて届いても正しく扱うため）
+  var sx = null;     // 受信中の SysEx { active, bytes }
+  var cm = null;     // 組み立て中のチャンネルメッセージ { bytes, need }
+  var lastPcAt = 0;  // 最後にプログラムチェンジを受けた時刻
+  var t0 = Date.now();
+  function ts() { return ((Date.now() - t0) / 1000).toFixed(2) + "s"; }
+
   function onMessage(ev) {
-    var d = ev.data, i;
-    if (sx && sx.active) {
-      for (i = 0; i < d.length; i++) {
-        if (d[i] >= 0xF8) continue;
-        sx.bytes.push(d[i]);
-        if (d[i] === 0xF7) { finishSysex(true); return; }
-      }
+    var d = ev.data;
+    for (var i = 0; i < d.length; i++) feed(d[i]);
+  }
+  function feed(b) {
+    if (b >= 0xF8) return;                         // クロック等は無視
+    if (b === 0xF0) {
+      if (sx && sx.active) abortSysex("次の SysEx が始まった");
+      cm = null;
+      sx = { active: true, bytes: [0xF0] };
       return;
     }
-    if (!d.length) return;
-    var st = d[0];
-    if (st === 0xF0) {
-      sx = { active: true, bytes: [] };
-      for (i = 0; i < d.length; i++) {
-        if (d[i] >= 0xF8) continue;
-        sx.bytes.push(d[i]);
-        if (d[i] === 0xF7) { finishSysex(true); return; }
-      }
+    if (b === 0xF7) {
+      if (sx && sx.active) { sx.bytes.push(b); finishSysex(true); }
       return;
     }
-    if (st >= 0xF8) return;
-    var type = st & 0xF0, ch = (st & 0x0F) + 1;
+    if (b >= 0x80) {                               // チャンネルメッセージの始まり
+      if (sx && sx.active) abortSysex("途中に 0x" + hex2(b) + " が割り込んだ");
+      var t = b & 0xF0;
+      cm = { bytes: [b], need: (t === 0xC0 || t === 0xD0) ? 2 : 3 };
+      return;
+    }
+    // データバイト
+    if (sx && sx.active) { sx.bytes.push(b); return; }
+    if (cm) {
+      cm.bytes.push(b);
+      if (cm.bytes.length === cm.need) { handleChannel(cm.bytes); cm = { bytes: [cm.bytes[0]], need: cm.need }; } // ランニングステータス対応
+    }
+  }
+  function abortSysex(why) {
+    var n = sx.bytes.length;
+    sx.active = false;
+    emit("error", ts() + " ダンプ受信が中断（" + why + "、" + n + " バイト時点）");
+    failDump("中断");
+  }
+
+  function handleChannel(m) {
+    var type = m[0] & 0xF0, ch = (m[0] & 0x0F) + 1;
     if (type === 0xB0) {
-      emit("midi", "受信 ch" + ch + " CC#" + d[1] + " = " + d[2]);
-      var f = CC_TO_FIELD[d[1]];
-      if (f && state.loaded) applyPart(ch, f, ccToValue(f, d[2]), "e2");
+      emit("midi", ts() + " 受信 ch" + ch + " CC#" + m[1] + " = " + m[2]);
+      var f = CC_TO_FIELD[m[1]];
+      if (f) noteCc(ch, f, m[2]);
+      if (f && state.loaded) applyPart(ch, f, ccToValue(f, m[2]), "e2");
     } else if (type === 0xC0) {
-      emit("midi", "受信 ch" + ch + " プログラムチェンジ " + d[1]);
+      lastPcAt = Date.now();
+      emit("midi", ts() + " 受信 ch" + ch + " プログラムチェンジ " + m[1]);
       if (options.autoReloadOnPattern) {
         cancelVerify();
         setTimeout(function () { requestDump("パターン切替"); }, 300);
@@ -214,42 +238,70 @@
     }
   }
 
-  // ---------------- ダンプ ----------------
-  var dumpTimer = null, dumpReason = "", dumpT0 = 0, pendingDump = null;
+  // 項目ごとに、直近に届いた CC を5件まで覚えておく（不一致の原因調べ用）
+  var ccHist = {};
+  function noteCc(p, f, v) {
+    var k = p + ":" + f, h = ccHist[k] || (ccHist[k] = []);
+    h.push(ts() + "=" + v);
+    if (h.length > 5) h.shift();
+  }
 
-  function requestDump(reason) {
+  // ---------------- ダンプ ----------------
+  var dumpTimer = null, dumpReason = "", dumpT0 = 0, pendingDump = null, retryCount = 0;
+
+  function requestDump(reason, isRetry) {
     if (status.busy) { pendingDump = reason || "再要求"; return; }   // 受信中なら終わってからもう一度
     if (status.midi !== "ready") return;
+    if (!isRetry) retryCount = 0;
     var msg = [0xF0, 0x42, 0x30 + options.globalCh - 1, 0x00, 0x01, PRODUCT_ID, 0x10, 0xF7];
     dumpReason = reason || "";
     dumpT0 = Date.now();
-    sx = null;
     if (!send(msg)) return;
     status.busy = true;
     emit("status", status);
     if (dumpTimer) clearTimeout(dumpTimer);
     dumpTimer = setTimeout(function () {
-      if (sx && sx.active) { finishSysex(false); return; }
-      status.busy = false;
-      emit("status", status);
-      emit("error", "e2 から応答がありません（" + dumpReason + "）");
+      dumpTimer = null;
+      if (sx && sx.active) { sx.active = false; emit("error", ts() + " ダンプが5秒で終わらない（" + sx.bytes.length + " バイト）"); failDump("時間切れ"); return; }
+      emit("error", ts() + " e2 から応答がありません（" + dumpReason + "）");
+      failDump("無応答");
     }, 5000);
+  }
+
+  // 読み込み失敗：少し待って読み直す（最大2回）
+  function failDump(why) {
+    if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
+    if (!status.busy) return;
+    status.busy = false;
+    emit("status", status);
+    if (retryCount < 2) {
+      retryCount++;
+      var r = dumpReason;
+      emit("midi", ts() + " 読み直します（" + retryCount + "回目、" + why + "）");
+      setTimeout(function () { requestDump(r, true); }, 500);
+    } else {
+      emit("error", ts() + " 読み込みをあきらめました（" + dumpReason + "）。表示は前の値のままです");
+      if (pendingDump) { var p = pendingDump; pendingDump = null; requestDump(p); }
+    }
   }
 
   function finishSysex(complete) {
     var b = sx.bytes;
     sx.active = false;
-    if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
     var isDump = b[0] === 0xF0 && b[1] === 0x42 && b[4] === 0x01 && b[6] === 0x40;
     if (!isDump) {
-      emit("midi", "受信 SysEx（ダンプ以外）: " + hexArr(b, 12));
-      if (status.busy && b[1] === 0x42) { status.busy = false; emit("status", status); }
+      emit("midi", ts() + " 受信 SysEx（ダンプ以外）: " + hexArr(b, 12));
+      if (status.busy && b[1] === 0x42) failDump("ダンプ以外の応答");
+      return;
+    }
+    if (dumpTimer) { clearTimeout(dumpTimer); dumpTimer = null; }
+    var data = decode7(b.slice(7, b.length - 1));
+    if (data.length !== DUMP_SIZE) {
+      emit("error", ts() + " ダンプが不完全：" + b.length + " バイト（本来 18733）。末尾 " + hexArr(b.slice(-6)));
+      failDump("不完全");
       return;
     }
     status.busy = false;
-    if (!complete) { emit("error", "ダンプが途中で切れました（" + b.length + " バイト）"); emit("status", status); return; }
-    var data = decode7(b.slice(7, b.length - 1));
-    if (data.length !== DUMP_SIZE) { emit("error", "ダンプの大きさが想定外：" + data.length); emit("status", status); return; }
     var ms = Date.now() - dumpT0;
     loadFromDump(data, ms);
     emit("status", status);
@@ -303,7 +355,8 @@
         checked++;
         var actual = parts[c.part][c.field];
         if (actual !== c.value) {
-          mismatches.push({ part: c.part, field: c.field, expected: c.value, actual: actual, cc: c.cc, source: c.source });
+          mismatches.push({ part: c.part, field: c.field, expected: c.value, actual: actual, cc: c.cc, source: c.source,
+                            history: (ccHist[c.part + ":" + c.field] || []).join(" ") });
         }
       }
     }
@@ -314,11 +367,19 @@
     state.loadedAt = new Date();
     state.loadMs = ms;
     state.reason = dumpReason;
+    // 内容が前回と同じか（パターン切替の直後に、まだ前のパターンを読んでいないかを見るため）
+    var fp = 0;
+    for (var q = 0; q < data.length; q++) fp = (fp * 31 + data[q]) | 0;
+    var same = (fp === lastFingerprint);
+    lastFingerprint = fp;
+    var sincePc = lastPcAt ? " / 切替から " + ((Date.now() - lastPcAt) / 1000).toFixed(2) + "s" : "";
+    emit("midi", ts() + " 読込完了（" + dumpReason + "、" + ms + "ms、内容" + (same ? "は前回と同じ" : "が変化") + sincePc + "）名前=" + g.name + " BPM=" + g.tempo);
     emit("loaded", state);
     if (checked) emit("verify", { mismatches: mismatches, checked: checked });
   }
 
   // ---------------- 状態の更新と照合 ----------------
+  var lastFingerprint = null;
   var verifyQueue = {};      // "パート:項目" → {part, field, value, cc, source}
   var verifyTimer = null;
 
@@ -332,7 +393,10 @@
   function scheduleVerify() {
     if (!options.verifyAfterEdit) { verifyQueue = {}; return; }
     if (verifyTimer) clearTimeout(verifyTimer);
-    verifyTimer = setTimeout(function () { verifyTimer = null; requestDump("照合"); }, options.verifyDelay);
+    var wait = options.verifyDelay;
+    var gap = state.loadedAt ? (state.loadedAt.getTime() + options.verifyMinInterval - Date.now()) : 0;
+    if (gap > wait) wait = gap;
+    verifyTimer = setTimeout(function () { verifyTimer = null; requestDump("照合"); }, wait);
   }
   function cancelVerify() { if (verifyTimer) { clearTimeout(verifyTimer); verifyTimer = null; } }
 
@@ -359,7 +423,7 @@
 
   // ---------------- 公開 ----------------
   global.E2 = {
-    version: "core-v1",
+    version: "core-v2",
     FIELDS: FIELDS,
     state: state,
     status: status,
