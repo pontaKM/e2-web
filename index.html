@@ -45,7 +45,7 @@
   #mfxHead { position:absolute; left:0; right:0; top:0; height:40px; display:flex; align-items:center; border-radius:4px; background:#1b1c1f; padding:0 12px; box-sizing:border-box; }
   #mfxHead .t { color:#a3e635; font-size:20px; font-weight:700; margin-right:12px; }
   #mfxHead #xyType { color:#e4e4e4; font-size:20px; }
-  #side { position:absolute; top:0; right:0; display:flex; flex-direction:column; }
+  #side { position:absolute; top:0; left:0; display:flex; flex-direction:column; }
   .btn { background:#2c2e33; border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#e4e4e4; }
   .btn.on { background:#a3e635; color:#1a2600; }
   .btn.press { background:#3a3d44; }
@@ -224,7 +224,7 @@
 <script src="e2core.js?v=7"></script>
 <script>
 (function () {
-  var SCREEN = "base-v18";
+  var SCREEN = "base-v19";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -328,8 +328,10 @@
     var xy = Math.max(200, Math.min(inner - G - SIDE_W, h - MFX_HEAD - padsH - 2 * G)), xyTop = MFX_HEAD + G;
     var pages = document.querySelectorAll(".page");
     for (var i = 0; i < pages.length; i++) { pages[i].style.top = TOP + "px"; }
-    var x = $("xy"); x.style.top = xyTop + "px"; x.style.width = xy + "px"; x.style.height = xy + "px";
-    var side = $("side"); side.style.top = xyTop + "px"; side.style.left = (xy + G) + "px"; side.style.height = xy + "px";
+    // HOLD・ALL の列は XY の左。画面の左端から指を滑らせたときの「ページを戻る」が XY で起きないようにするため
+    var sideW = inner - G - xy;
+    var x = $("xy"); x.style.top = xyTop + "px"; x.style.left = (sideW + G) + "px"; x.style.width = xy + "px"; x.style.height = xy + "px";
+    var side = $("side"); side.style.top = xyTop + "px"; side.style.width = sideW + "px"; side.style.height = xy + "px";
     var padsTop = h - padsH;                     // パートボタンは下端にそろえる
     var pads = $("pads"); pads.style.top = padsTop + "px"; pads.style.height = padsH + "px";
     for (var p = 1; p <= 16; p++) {
@@ -869,6 +871,13 @@
     $("summary").value = s.join("\n");
   };
   $("btnSelect").onclick = function () { var ta = $("summary"); ta.focus(); ta.setSelectionRange(0, ta.value.length); };
+
+  // ---------------- 「ページを戻る」の保険 ----------------
+  // 左端から指を滑らせて「戻る」が働いても、このページにとどまる（同じページの履歴を 1 つ足しておき、戻ったらまた足す）
+  try {
+    history.pushState({ e2: 1 }, "", location.href);
+    window.addEventListener("popstate", function () { history.pushState({ e2: 1 }, "", location.href); }, false);
+  } catch (e) {}
 
   // ---------------- 起動 ----------------
   $("ver").textContent = "画面 " + SCREEN + " / " + E2.version;
