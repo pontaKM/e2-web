@@ -247,10 +247,10 @@
 
 <div id="rotate" class="jp">iPad を縦にしてください（縦画面専用です）</div>
 
-<script src="e2core.js?v=7"></script>
+<script src="e2core.js?v=8"></script>
 <script>
 (function () {
-  var SCREEN = "base-v20";
+  var SCREEN = "base-v22";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -268,6 +268,8 @@
 
   // ---------------- タブ ----------------
   var PAGES = ["live", "mix", "part", "all", "pattern", "setup"], curPage = "live";
+  // いったん隠すタブ（MIX・PART。中身は残してあるので、ここから外せば元に戻る）
+  var HIDDEN = ["mix", "part"];
   function showPage(name) {
     curPage = name;
     for (var i = 0; i < PAGES.length; i++) $("p_" + PAGES[i]).className = $("p_" + PAGES[i]).className.replace(/ on/g, "") + (PAGES[i] === name ? " on" : "");
@@ -277,7 +279,10 @@
   }
   (function () {
     var tabs = document.querySelectorAll(".tab");
-    for (var i = 0; i < tabs.length; i++) (function (t) { onPress(t, function () { showPage(t.getAttribute("data-page")); }); })(tabs[i]);
+    for (var i = 0; i < tabs.length; i++) (function (t) {
+      if (HIDDEN.indexOf(t.getAttribute("data-page")) >= 0) t.style.display = "none";
+      onPress(t, function () { showPage(t.getAttribute("data-page")); });
+    })(tabs[i]);
   })();
   // MFX・MIX・PART・ALL ではページ全体が動かないようにする
   document.addEventListener("touchmove", function (e) { if (curPage === "live" || curPage === "mix" || curPage === "part" || curPage === "all") e.preventDefault(); }, { passive: false });
@@ -1006,7 +1011,7 @@
   $("ver").textContent = "画面 " + SCREEN + " / " + E2.version;
   buildTable();
   var startPage = "live";
-  try { var sp = localStorage.getItem("e2ui:page"); if (sp && PAGES.indexOf(sp) >= 0) startPage = sp; } catch (e) {}
+  try { var sp = localStorage.getItem("e2ui:page"); if (sp && PAGES.indexOf(sp) >= 0 && HIDDEN.indexOf(sp) < 0) startPage = sp; } catch (e) {}
   showPage(startPage);
   layout();
   drawXY(); drawHold(); drawTop(); drawMix();
