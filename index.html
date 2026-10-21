@@ -134,6 +134,38 @@
   .aln .mtag { vertical-align:3px; }
   .aln .v { font-size:11px; color:#6a6d73; line-height:12px; }
   .w.tg.al { width:24px; height:24px; }
+  /* ALL：数字キーで入力中のセルと行 */
+  .alr.kt { background:#2a2c31; box-shadow:inset 0 0 0 1px #4a4d55; }
+  .w.kt { outline:2px solid #ffffff; outline-offset:1px; border-radius:4px; }
+
+  /* 数字キー（ALL のセルをタップすると出る。入力中の行と反対側の半分に出す） */
+  #kp { position:absolute; left:4px; right:4px; display:none; z-index:5; box-sizing:border-box; border-radius:8px;
+        background:#16171a; border:1px solid #3a3d44; box-shadow:0 10px 40px rgba(0,0,0,.7); }
+  #kp.on { display:block; }
+  #kpHead { position:absolute; left:12px; right:12px; top:10px; height:44px; display:flex; align-items:center; white-space:nowrap; }
+  #kpPart { font-size:26px; font-weight:700; color:#fff; margin-right:6px; }
+  #kpPart .mtag { font-size:14px; padding:2px 6px; vertical-align:4px; }
+  #kpTabs { display:flex; margin-left:12px; }
+  .kpf { font-size:20px; font-weight:700; height:44px; line-height:44px; padding:0 16px; border-radius:4px; margin-right:4px; background:#26282c; color:#8a8d93; }
+  .kpf.on { color:#111214; }
+  #kpNow { margin-left:auto; font-size:18px; color:#8a8d93; }
+  #kpNow b { color:#e4e4e4; font-size:22px; margin-left:6px; }
+  #kpClose { width:64px; height:44px; margin-left:14px; border-radius:4px; background:#2c2e33; font-size:30px; line-height:44px; text-align:center; color:#e4e4e4; flex:none; }
+  #kpDisp { position:absolute; left:12px; right:12px; top:62px; height:72px; border-radius:6px; background:#0b0c0d; display:flex; align-items:center; padding:0 18px; box-sizing:border-box; white-space:nowrap; }
+  #kpRange { font-size:16px; color:#6a6d73; }
+  #kpFmt { font-size:24px; color:#a0a3a9; margin-left:auto; margin-right:22px; }
+  #kpVal { font-size:58px; font-weight:700; color:#fff; min-width:140px; text-align:right; line-height:72px; }
+  #kpVal.fresh { color:#6a6d73; }
+  #kpVal.bad { color:#ef4444; }
+  #kpVal.sent { color:#4cc38a; }
+  #kpKeys { position:absolute; left:12px; right:12px; bottom:12px; }
+  .kk { position:absolute; box-sizing:border-box; border-radius:6px; background:#2c2e33; color:#e4e4e4; display:flex; align-items:center; justify-content:center; font-size:38px; font-weight:700; }
+  .kk.fn { background:#222428; color:#c9cbd0; font-size:26px; }
+  .kk.ent { background:#e4e4e4; color:#111214; font-size:26px; }
+  .kk.press { background:#4a4d55; }
+  .kk.ent.press { background:#ffffff; }
+  .kk.off { opacity:.3; }
+  .kk.big { font-size:44px; }
 
   /* 準備中・設定ページ */
   .note { color:#8a8d93; font-size:16px; padding:20px; }
@@ -201,6 +233,13 @@
 <!-- ALL -->
 <div class="page" id="p_all"><div id="allBox"></div></div>
 
+<!-- 数字キー（ALL のセルをタップすると出る） -->
+<div id="kp">
+  <div id="kpHead"><span id="kpPart"></span><span id="kpTabs"></span><span id="kpNow"></span><span id="kpClose">×</span></div>
+  <div id="kpDisp"><span id="kpRange"></span><span id="kpFmt"></span><span id="kpVal"></span></div>
+  <div id="kpKeys"></div>
+</div>
+
 <!-- PATTERN -->
 <div class="page scrollpage setup" id="p_pattern">
   <div class="box">
@@ -250,7 +289,7 @@
 <script src="e2core.js?v=8"></script>
 <script>
 (function () {
-  var SCREEN = "base-v22";
+  var SCREEN = "base-v23";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -276,6 +315,7 @@
     var tabs = document.querySelectorAll(".tab");
     for (var j = 0; j < tabs.length; j++) tabs[j].className = "tab" + (tabs[j].getAttribute("data-page") === name ? " on" : "");
     try { localStorage.setItem("e2ui:page", name); } catch (e) {}
+    if (name !== "all" && typeof kpClose === "function") kpClose();
   }
   (function () {
     var tabs = document.querySelectorAll(".tab");
@@ -361,7 +401,7 @@
   // PART：上に正方形のパート選択 2段×8、下に役割ごとのカード 2列×3段
   // ALL：上に見出し、その下に 16 パートを縦に。1 パート＝横 1 行
   var TOP = 48, M = 4, G = 6, SIDE_W = 84, MFX_HEAD = 40;
-  var MIX_GAP = 6, mixColW = 90, allRowH = 0;
+  var MIX_GAP = 6, mixColW = 90, allRowH = 0, allGeo = null;
   function layout() {
     var W = window.innerWidth, H = window.innerHeight;
     $("rotate").style.display = W > H ? "flex" : "none";
@@ -429,6 +469,7 @@
   function layoutAll(inner, h) {
     var HEAD = 34, RG = 3, NUM = 64, GG = 10, IG = 2, RP = 6;
     var rh = allRowH = Math.floor((h - HEAD - 15 * RG) / 16);
+    allGeo = { HEAD: HEAD, RG: RG, rh: rh, h: h };
     var tw = 0, gaps = 0, i;
     for (i = 0; i < ALL_COLS.length; i++) { tw += ALL_COLS[i].wt; if (i > 0) gaps += ALL_COLS[i].t ? GG : IG; }
     var unit = (inner - NUM - GG - RP - gaps) / tw, xs = [], ws = [], x = NUM + GG;
@@ -458,6 +499,7 @@
         else placeW(w, xs[c], y + 3, ws[c], rh - 6);
       }
     }
+    if (kp.open) kpPlace();
   }
   window.addEventListener("resize", layout, false);
   window.addEventListener("orientationchange", function () { setTimeout(layout, 300); }, false);
@@ -618,7 +660,8 @@
       onPress(el, function () { selPart = p; try { localStorage.setItem("e2ui:part", String(p)); } catch (e) {} drawPart(); });
     })($("psel" + p), p);
 
-    // ALL：16 パートを縦に、1 パート＝横 1 行。数値は出さず、つまみ・絵・色だけ（表示だけで操作はしない）
+    // ALL：16 パートを縦に、1 パート＝横 1 行。数値は出さず、つまみ・絵・色だけ
+    //   なぞっても値は変わらない。セルをタップすると数字キーが出て、ENTER を押したときだけ送る（base-v23）
     h = "";
     for (c = 0; c < ALL_COLS.length; c++) {
       var AC = ALL_COLS[c], col = GROUP_COLOR[AC.g];
@@ -629,7 +672,7 @@
       h += '<div class="alr" id="alr' + p + '"></div><div class="aln" id="aln' + p + '"><div><span class="n">' + p + '</span><span class="mtag">M</span></div><div class="v" id="alv' + p + '"></div></div>';
       ALLW[p] = [];
       for (c = 0; c < ALL_COLS.length; c++) {
-        var D = ALL_COLS[c], w = addW({ kind: D.kind, part: p, f: D.f, g: D.g, bi: D.bi, ref: D.ref, nv: true, pad: 3 });
+        var D = ALL_COLS[c], w = addW({ kind: D.kind, part: p, f: D.f, g: D.g, bi: D.bi, ref: D.ref, nv: true, pad: 3, col: c });
         ALLW[p].push(w);
         h += wHTML(w, "", D.kind === "toggle" ? "mini al" : (D.kind === "knob" ? "nv" : (D.kind === "hbar" ? "" : "graph")));
       }
@@ -834,6 +877,211 @@
   hookDrags($("mixBox"));
   hookDrags($("partBox"));
 
+  // ---------------- ALL の数字キー（base-v23） ----------------
+  //   セルをタップ → 大きな数字キー → ENTER を押したときだけ CC を送る。なぞって値を変える操作はしない（本体のつまみに任せる）
+  //   パネルは、入力中の行と反対側の半分に出す（1〜8 行目なら下半分、9〜16 行目なら上半分）。見えている側のセルをタップすると対象が移る
+  //   ENTER：送って、このまま続けて入力できる / ENTER ↓：送って、次のパートの同じ項目へ（何も打っていなければ送らずに移るだけ）
+  var KP_LABEL = { oscEdit: "OSC EDIT", pitch: "PITCH", glide: "GLIDE", cutoff: "CUTOFF", reso: "RESO", filterEG: "EG INT", modDepth: "MOD DEPTH", modSpeed: "MOD SPEED",
+                   level: "LEVEL", pan: "PAN", attack: "ATTACK", decay: "DECAY", ifxOn: "IFX", ifxEdit: "IFX EDIT", mfxSend: "MFX SEND" };
+  var kp = { open: false, p: 1, col: 0, fields: [], fi: 0, entry: "", neg: false, fresh: true, keys: [], sentAt: 0 };
+  function kpF() { return kp.fields[kp.fi]; }
+  function kpKind(f) { return E2.FIELDS[f].kind; }
+  function kpLo(f) { return kpKind(f) === "s" ? -64 : 0; }
+  function kpHi(f) { var k = kpKind(f); return k === "s" ? 63 : (k === "b" ? 1 : 127); }
+  function kpCur() { return E2.state.parts[kp.p][kpF()]; }
+  // 値の見せ方（本体に近い表記）。PAN は L/C/R、中央が 0 の項目は +/−
+  function kpFmtNum(f, v) {
+    if (kpKind(f) === "b") return v ? "ON" : "OFF";
+    if (f === "pan") return v === 0 ? "C" : (v < 0 ? "L" + (-v) : "R" + v);
+    if (kpKind(f) === "s") return v > 0 ? "+" + v : (v < 0 ? "−" + (-v) : "0");
+    return String(v);
+  }
+  // 入力中の値（まだ何も打っていなければ今の値）。打ちかけで空なら null
+  function kpVal() {
+    if (kp.fresh) return kpCur();
+    if (kp.entry === "") return null;
+    var v = parseInt(kp.entry, 10);
+    return kp.neg ? -v : v;
+  }
+  function kpValid(v) { var f = kpF(); return v !== null && v >= kpLo(f) && v <= kpHi(f); }
+  function kpMark(on) {
+    if (!kp.open) return;
+    var r = $("alr" + kp.p), w = $(ALLW[kp.p][kp.col].id);
+    r.className = r.className.replace(/ kt/g, "") + (on ? " kt" : "");
+    w.className = w.className.replace(/ kt/g, "") + (on ? " kt" : "");
+  }
+  function kpOpen(p, col, fi) {
+    if (!mixUsable()) return false;
+    var all = ALL_COLS[col].f instanceof Array ? ALL_COLS[col].f : [ALL_COLS[col].f], fs = [];
+    for (var i = 0; i < all.length; i++) if (E2.FIELDS[all[i]] && E2.FIELDS[all[i]].cc) fs.push(all[i]);     // 送れる項目だけ（フィルター種類などは除く）
+    if (!fs.length) return false;
+    var keepFi = kp.open && kp.col === col ? kp.fi : 0;
+    kpMark(false);
+    kp.open = true; kp.p = p; kp.col = col; kp.fields = fs;
+    kp.fi = fi !== undefined ? fi : keepFi; if (kp.fi >= fs.length) kp.fi = 0;
+    kp.entry = ""; kp.neg = false; kp.fresh = true; kp.sentAt = 0;
+    kpMark(true);
+    $("kp").className = "on";
+    kpBuildKeys(); kpPlace(); kpDraw();
+    return true;
+  }
+  function kpClose() {
+    if (!kp.open) return;
+    kpMark(false);
+    kp.open = false;
+    $("kp").className = "";
+  }
+  function kpSetField(i) {
+    if (i === kp.fi || i < 0 || i >= kp.fields.length) return;
+    kp.fi = i; kp.entry = ""; kp.neg = false; kp.fresh = true;
+    kpBuildKeys(); kpPlace(); kpDraw();
+  }
+  function kpMove(d) { var np = kp.p + d; if (np >= 1 && np <= 16) kpOpen(np, kp.col, kp.fi); }
+  // キーの並び：[行, 列, 行の数, 列の数, キー, 表示, 種類]
+  function kpBuildKeys() {
+    var f = kpF(), K = [];
+    if (kpKind(f) === "b") {
+      K = [[0, 0, 4, 2, "off", "OFF", "big"], [0, 2, 4, 2, "on", "ON", "big"]];
+    } else {
+      var sp = kpKind(f) === "s" ? ["neg", f === "pan" ? "L / R" : "±", "fn"] : (f === "level" ? ["ref", String(LEVEL_REF), "fn"] : ["clr", "C", "fn"]);
+      K = [[0, 0, 1, 1, "7", "7"], [0, 1, 1, 1, "8", "8"], [0, 2, 1, 1, "9", "9"], [0, 3, 1, 1, "bs", "⌫", "fn"],
+           [1, 0, 1, 1, "4", "4"], [1, 1, 1, 1, "5", "5"], [1, 2, 1, 1, "6", "6"], [1, 3, 1, 1, "dn", "−1", "fn"],
+           [2, 0, 1, 1, "1", "1"], [2, 1, 1, 1, "2", "2"], [2, 2, 1, 1, "3", "3"], [2, 3, 1, 1, "up", "+1", "fn"],
+           [3, 0, 1, 1, sp[0], sp[1], sp[2]], [3, 1, 1, 1, "0", "0"], [3, 2, 1, 1, "next", "ENTER ↓", "fn"], [3, 3, 1, 1, "ent", "ENTER", "ent"]];
+    }
+    var h = "";
+    for (var i = 0; i < K.length; i++) h += '<div class="kk' + (K[i][6] ? " " + K[i][6] : "") + '" id="kk_' + K[i][4] + '" data-k="' + K[i][4] + '">' + K[i][5] + '</div>';
+    $("kpKeys").innerHTML = h;
+    kp.keys = K;
+  }
+  function kpPlace() {
+    var g = allGeo; if (!g || !kp.open) return;
+    var split = g.HEAD + 8 * (g.rh + g.RG), top, hgt;           // split = 9 行目の上端
+    if (kp.p <= 8) { top = TOP + split - 2; hgt = g.h - split + 2; }
+    else { top = TOP; hgt = split - g.RG - 1; }
+    var el = $("kp"); el.style.top = top + "px"; el.style.height = hgt + "px";
+    var KT = 146, kw = window.innerWidth - 8 - 2 - 24, kh = hgt - 2 - KT - 12, GAP = 8;
+    var box = $("kpKeys"); box.style.top = KT + "px"; box.style.height = kh + "px";
+    var cw = (kw - 3 * GAP) / 4, rw = (kh - 3 * GAP) / 4;
+    for (var i = 0; i < kp.keys.length; i++) {
+      var k = kp.keys[i], e = $("kk_" + k[4]);
+      e.style.left = Math.round(k[1] * (cw + GAP)) + "px"; e.style.top = Math.round(k[0] * (rw + GAP)) + "px";
+      e.style.width = Math.round(k[3] * cw + (k[3] - 1) * GAP) + "px"; e.style.height = Math.round(k[2] * rw + (k[2] - 1) * GAP) + "px";
+    }
+  }
+  function kpDraw() {
+    if (!kp.open || !E2.state.loaded) return;
+    var f = kpF(), color = GROUP_COLOR[ALL_COLS[kp.col].g], pt = E2.state.parts[kp.p], cur = pt[f];
+    $("kpPart").innerHTML = "PART " + kp.p + (pt.mute ? ' <span class="mtag on">M</span>' : "");
+    var t = "";
+    for (var i = 0; i < kp.fields.length; i++) {
+      var on = i === kp.fi;
+      t += '<span class="kpf' + (on ? " on" : "") + '" data-fi="' + i + '" style="' + (on ? "background:" + color : "color:" + color) + '">' + KP_LABEL[kp.fields[i]] + '</span>';
+    }
+    $("kpTabs").innerHTML = t;
+    $("kpNow").innerHTML = "NOW<b>" + kpFmtNum(f, cur) + "</b>";
+    var vEl = $("kpVal"), sent = Date.now() - kp.sentAt < 450;
+    if (kpKind(f) === "b") {
+      vEl.textContent = cur ? "ON" : "OFF"; vEl.className = sent ? "sent" : "";
+      $("kpRange").textContent = ""; $("kpFmt").textContent = "";
+      var kOn = $("kk_on"), kOff = $("kk_off");
+      kOn.style.background = cur ? color : ""; kOn.style.color = cur ? "#111214" : "";
+      kOff.style.background = cur ? "" : "#e4e4e4"; kOff.style.color = cur ? "" : "#111214";
+      return;
+    }
+    var v = kpVal(), txt;
+    if (kp.fresh) txt = kpFmtNum(f, cur);
+    else if (f === "pan") txt = kp.entry === "" ? (kp.neg ? "L_" : "R_") : (v === 0 ? "C" : (kp.neg ? "L" : "R") + kp.entry);
+    else if (kpKind(f) === "s") txt = (kp.neg ? "−" : (kp.entry === "" || v === 0 ? "" : "+")) + (kp.entry === "" ? "_" : kp.entry);
+    else txt = kp.entry === "" ? "_" : kp.entry;
+    vEl.textContent = txt;
+    vEl.className = kp.fresh ? (sent ? "sent" : "fresh") : (kpValid(v) ? "" : "bad");
+    $("kpRange").textContent = f === "pan" ? "L64 – C – R63" : (kpKind(f) === "s" ? "−64 – +63" : "0 – 127");
+    $("kpFmt").textContent = f === "oscEdit" && kpValid(v) ? (v <= 64 ? "FWD" : "REV") : "";
+    var bad = !kp.fresh && !kpValid(v);
+    $("kk_ent").className = "kk ent" + (bad || kp.fresh ? " off" : "");
+    $("kk_next").className = "kk fn" + (bad || (kp.fresh && kp.p >= 16) ? " off" : "");
+  }
+  function kpPress(k) {
+    if (!kp.open) return;
+    if (!mixUsable()) { kpClose(); return; }
+    var f = kpF();
+    if (/^[0-9]$/.test(k)) {
+      if (kp.fresh) { kp.fresh = false; kp.entry = ""; kp.neg = false; }
+      if (kp.entry === "0") kp.entry = "";
+      if (kp.entry.length < 3) kp.entry += k;
+    } else if (k === "bs") {
+      if (kp.fresh) { kp.fresh = false; kp.entry = ""; kp.neg = false; } else kp.entry = kp.entry.slice(0, -1);
+    } else if (k === "clr") { kp.fresh = false; kp.entry = ""; kp.neg = false; }
+    else if (k === "ref") { kp.fresh = false; kp.entry = String(LEVEL_REF); kp.neg = false; }
+    else if (k === "neg") {
+      if (kp.fresh) { var c0 = kpCur(); kp.fresh = false; kp.entry = c0 === 0 ? "" : String(Math.abs(c0)); kp.neg = c0 < 0; }
+      kp.neg = !kp.neg;
+    } else if (k === "up" || k === "dn") {
+      var v1 = kpVal(); if (v1 === null) v1 = kpCur();
+      v1 = clamp(v1 + (k === "up" ? 1 : -1), kpLo(f), kpHi(f));
+      kp.fresh = false; kp.entry = String(Math.abs(v1)); kp.neg = v1 < 0;
+    } else if (k === "ent" || k === "next") {
+      if (kp.fresh) { if (k === "next") kpMove(1); return; }
+      var v = kpVal();
+      if (!kpValid(v)) { kpBad(); return; }
+      E2.setPart(kp.p, f, v);
+      kp.fresh = true; kp.entry = ""; kp.neg = false; kp.sentAt = Date.now();
+      setTimeout(kpDraw, 460);
+      if (k === "next" && kp.p < 16) { kpMove(1); return; }
+    } else if (k === "on" || k === "off") {
+      E2.setPart(kp.p, f, k === "on" ? 1 : 0);
+      kp.sentAt = Date.now(); setTimeout(kpDraw, 460);
+    }
+    kpDraw();
+  }
+  function kpBad() { var d = $("kpDisp"); d.style.background = "#3a1414"; setTimeout(function () { d.style.background = ""; }, 200); }
+  // パネルの中のタッチ：キー・項目の切替・閉じる。押した瞬間に反応する（指ごとに 1 回）
+  function kpHit(target) {
+    while (target && target !== document.body) {
+      if (target.id === "kpClose") { kpClose(); return; }
+      if (target.getAttribute) {
+        var k = target.getAttribute("data-k");
+        if (k) { pressFlash(target); kpPress(k); return; }
+        var fi = target.getAttribute("data-fi");
+        if (fi) { kpSetField(parseInt(fi, 10)); return; }
+      }
+      if (target.id === "kp") return;
+      target = target.parentNode;
+    }
+  }
+  $("kp").addEventListener("touchstart", function (e) { e.preventDefault(); for (var i = 0; i < e.changedTouches.length; i++) kpHit(e.changedTouches[i].target); }, false);
+  $("kp").addEventListener("mousedown", function (e) { kpHit(e.target); }, false);
+  // ALL のタップ：セルなら数字キーを開く（開いていれば対象を移す）。パート番号なら同じ項目のまま別のパートへ。それ以外は閉じる
+  //   指が動いたとき（14pt 以上）はタップとみなさない
+  function rowOf(target) {
+    while (target && target !== document.body) { var m = target.id && /^al[rn](\d+)$/.exec(target.id); if (m) return parseInt(m[1], 10); target = target.parentNode; }
+    return 0;
+  }
+  function allTap(target) {
+    var w = widgetOf(target), rp = rowOf(target);
+    if (w && w.col !== undefined) {
+      if (!kpOpen(w.part, w.col)) { var el = $(w.id); el.style.opacity = ".5"; setTimeout(function () { el.style.opacity = ""; }, 150); }
+    } else if (rp && kp.open) kpOpen(rp, kp.col);
+    else kpClose();
+  }
+  (function () {
+    var box = $("allBox"), taps = {};
+    box.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      for (var i = 0; i < e.changedTouches.length; i++) { var t = e.changedTouches[i]; taps[t.identifier] = { x: t.clientX, y: t.clientY, target: t.target }; }
+    }, false);
+    box.addEventListener("touchend", function (e) {
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        var t = e.changedTouches[i], s = taps[t.identifier];
+        delete taps[t.identifier];
+        if (s && Math.abs(t.clientX - s.x) < 14 && Math.abs(t.clientY - s.y) < 14) allTap(s.target);
+      }
+    }, false);
+    box.addEventListener("touchcancel", function (e) { for (var i = 0; i < e.changedTouches.length; i++) delete taps[e.changedTouches[i].identifier]; }, false);
+    box.addEventListener("click", function (e) { allTap(e.target); }, false);     // パソコンで確認する用（マウス）
+  })();
+
   // ---------------- 上のバー ----------------
   function drawTop() {
     var s = E2.state, g = s.global || {}, st = E2.status;
@@ -944,11 +1192,14 @@
       // 表示が入れ替わったら、MIX で操作中の指は基準を取り直す
       if (E2.state.loaded) rebaseDrags(null, null, null);
       drawXY(); drawPads(); drawMix(); drawTop(); renderTable();
+      // 数字キー：表示が使えなくなったら閉じる。パターンが替わったら入力中の行の印を付け直して、今の値を出し直す
+      if (kp.open) { if (!mixUsable()) kpClose(); else { kpMark(true); kpDraw(); } }
     } else if (type === "part") {
       if (d.field === "mfxSend") drawPad(d.part);
       if (d.source === "e2") rebaseDrags(d.part, d.field, d.value);   // 本体のつまみが動いたら、操作中の指はそこを基準に続ける
       drawMixCell(d.part, d.field);
       setCell(d.part, d.field, true);
+      if (kp.open && d.part === kp.p) kpDraw();
     } else if (type === "verify") {
       var t = new Date().toLocaleTimeString();
       if (!d.mismatches.length) verifyLines.unshift(t + "  " + d.checked + " 項目すべて一致");
