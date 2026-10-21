@@ -80,6 +80,8 @@
   .w.tg.pk.on { background:#f472b6; color:#2a0a1a; box-shadow:none; }
   .w.tg.lm { color:#a3e635; box-shadow:inset 0 0 0 1px #3d5216; }
   .w.tg.lm.on { background:#a3e635; color:#1a2600; box-shadow:none; }
+  .w.tg.te { color:#2dd4bf; box-shadow:inset 0 0 0 1px #1d5048; }
+  .w.tg.te.on { background:#2dd4bf; color:#062a25; box-shadow:none; }
   .w.tg.mini { background:transparent; }
   .w.tg.mini .tvv { display:none; }
   .w.tg .tl { font-size:11px; display:block; text-align:center; line-height:12px; opacity:.85; }
@@ -123,8 +125,9 @@
   .card .ct .ty { color:#a0a3a9; margin-left:8px; font-size:14px; }
   .w .gwave { fill:#3a3d44; }
   .w .gtxt { font-size:12px; font-weight:700; }
+  .w.nv .gtxt, .w.graph .gtxt.sm { font-size:10px; }
 
-  /* ALL：16 パートを縦に並べ、1 パート＝横 1 行で全項目を絵で一覧（表示だけ） */
+  /* ALL：16 パートを縦に並べ、1 パート＝横 1 行で全項目を絵で一覧 */
   .alh { position:absolute; text-align:center; white-space:nowrap; overflow:hidden; }
   .alh.g { font-size:14px; font-weight:700; line-height:16px; border-bottom:2px solid; }
   .alh.s { font-size:11px; line-height:13px; color:#6a6d73; }
@@ -266,7 +269,7 @@
   <div class="box">
     <h2>16パートの状態（本体のつまみを回すと即座に変わります）</h2>
     <div class="scroll"><table id="tbl"></table></div>
-    <div class="dim">灰色の行はミュート中のパートです。変わったセルは一瞬緑になります。</div>
+    <div class="dim">灰色の行はミュート中のパートです。変わったセルは一瞬緑になります。フィルター種類・AEG（Amp EG）は本体から MIDI が届かないため、停止中の定期確認（数秒おき）で反映します。</div>
   </div>
   <div class="box">
     <h2>照合（予測した値と、読み直した実際の値の比較）</h2>
@@ -286,10 +289,10 @@
 
 <div id="rotate" class="jp">iPad を縦にしてください（縦画面専用です）</div>
 
-<script src="e2core.js?v=8"></script>
+<script src="e2core.js?v=9"></script>
 <script>
 (function () {
-  var SCREEN = "base-v23";
+  var SCREEN = "base-v24";
   function $(id) { return document.getElementById(id); }
   function pad3(n) { n = String(n); while (n.length < 3) n = "0" + n; return n; }
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -332,6 +335,7 @@
   //  part: パート番号、または "sel"（PART ページで選んでいるパート）
   //  bi: 真上が中央のつまみ（−64〜+63）/ ref: 基準の値（印を付ける）/ g: 役割グループ（色）/ nv: 数値を出さない / pad: 絵の余白
   var GROUP_COLOR = { mix: "#60a5fa", flt: "#a78bfa", env: "#2dd4bf", osc: "#e2e8f0", mod: "#fde68a", ifx: "#f472b6", mfx: "#a3e635" };
+  var TOGGLE_CLASS = { ifx: " pk", mfx: " lm", env: " te" };     // ON/OFF の色（IFX ピンク、MFX ライム、AMP EG 青緑）
   var FSHORT = { "OFF": "OFF" };
   function filterShort(name) { return FSHORT[name] || String(name).replace("electribe ", "e ").replace("MS20 ", "MS "); }
   var VOICES = ["MONO1", "MONO2", "POLY1", "POLY2"];
@@ -344,7 +348,7 @@
   function wPart(w) { return w.part === "sel" ? selPart : w.part; }
   function wFields(w) { return w.f instanceof Array ? w.f : [w.f]; }
   function wHTML(w, label, cls) {
-    var c = GROUP_COLOR[w.g], h = '<div class="w ' + w.kind + (cls ? " " + cls : "") + (w.kind === "toggle" ? " tg" + (w.g === "ifx" ? " pk" : (w.g === "mfx" ? " lm" : "")) : "") + '" id="' + w.id + '" data-w="' + w.i + '">';
+    var c = GROUP_COLOR[w.g], h = '<div class="w ' + w.kind + (cls ? " " + cls : "") + (w.kind === "toggle" ? " tg" + (TOGGLE_CLASS[w.g] || "") : "") + '" id="' + w.id + '" data-w="' + w.i + '">';
     if (w.kind === "knob") {
       h += '<svg id="' + w.id + 'g" viewBox="0 0 40 40" width="36" height="36"><path class="trk" d="' + KNOB_TRACK + '"/>' +
            '<path class="arc" id="' + w.id + 'a" d="" style="stroke:' + c + '"/><line class="ind" id="' + w.id + 'i" x1="20" y1="20" x2="20" y2="20"/>';
@@ -596,21 +600,22 @@
   // ---------------- MIX・PART・ALL を組み立てる ----------------
   var KNOB_TRACK = "M8.69 31.31 A16 16 0 1 1 31.31 31.31";   // −135°〜+135° の弧（下が欠けた円）
   var MIXW = [null], PCARDS = [], ALLW = [null];
-  // ALL の列：PART と同じ並び（OSC → FILTER → MOD → AMP → EG → IFX）、最後に MFX。t = グループ名（グループの最初の列だけ）、s = 項目名、wt = 幅の比率
+  // ALL の列：本体の並びに近い順（OSC → FILTER → MOD → AMP → EG → IFX）。t = グループ名（グループの最初の列だけ）、s = 項目名、wt = 幅の比率
+  //   base-v24：EG INT は本体と同じく FILTER の仲間に。MFX SEND は MFX タブにまとめたので外した。EG の先頭に AMP EG の ON/OFF（表示だけ）
   var ALL_COLS = [
     { g: "osc", t: "OSC", s: "EDIT", wt: 2.0, kind: "sample", f: ["oscEdit"] },
     { g: "osc", s: "PIT", wt: 1, kind: "knob", f: "pitch", bi: true },
     { g: "osc", s: "GLD", wt: 1, kind: "knob", f: "glide" },
     { g: "flt", t: "FILTER", s: "CUT · RES", wt: 2.2, kind: "filter", f: ["cutoff", "reso", "filterType"] },
-    { g: "mod", t: "MOD", s: "EG INT", wt: 1, kind: "knob", f: "filterEG", bi: true },
-    { g: "mod", s: "DEP", wt: 1, kind: "knob", f: "modDepth" },
+    { g: "flt", s: "EG INT", wt: 1, kind: "knob", f: "filterEG", bi: true },
+    { g: "mod", t: "MOD", s: "DEP", wt: 1, kind: "knob", f: "modDepth" },
     { g: "mod", s: "SPD", wt: 1, kind: "knob", f: "modSpeed" },
-    { g: "mix", t: "AMP", s: "LVL", wt: 1.9, kind: "hbar", f: "level", ref: LEVEL_REF },
+    { g: "mix", t: "AMP", s: "LVL", wt: 2.0, kind: "hbar", f: "level", ref: LEVEL_REF },
     { g: "mix", s: "PAN", wt: 1, kind: "knob", f: "pan", bi: true },
-    { g: "env", t: "EG", s: "ATK · DCY", wt: 1.8, kind: "env", f: ["attack", "decay"] },
+    { g: "env", t: "EG", s: "AMP", wt: 0.9, kind: "toggle", f: "ampEG" },
+    { g: "env", s: "ATK · DCY", wt: 1.8, kind: "env", f: ["attack", "decay"] },
     { g: "ifx", t: "IFX", s: "ON", wt: 0.8, kind: "toggle", f: "ifxOn" },
-    { g: "ifx", s: "EDIT", wt: 1, kind: "knob", f: "ifxEdit" },
-    { g: "mfx", t: "MFX", s: "SEND", wt: 0.9, kind: "toggle", f: "mfxSend" }
+    { g: "ifx", s: "EDIT", wt: 1, kind: "knob", f: "ifxEdit" }
   ];
   (function () {
     // MIX：各パートは縦の帯（上段 1〜8、下段 9〜16）
@@ -629,16 +634,16 @@
 
     // PART：パート選択と、役割ごとのカード
     var K = function (f, l, g, o) { var w = { kind: "knob", part: "sel", f: f, g: g, label: l }; for (var k in (o || {})) w[k] = o[k]; return addW(w); };
-    // 本体の並びに近い順：OSC → FILTER → MOD → AMP → EG → IFX（左右 2 列、上から）
+    // 本体の並びに近い順：OSC → FILTER → MOD → AMP → EG → IFX（左右 2 列、上から）。EG INT は FILTER の仲間（base-v24）
     PCARDS = [
       { t: "OSC", g: "osc", ty: function (pt) { return "#" + pt.oscType; },
         graph: addW({ kind: "sample", part: "sel", f: ["oscEdit"], g: "osc" }),
         knobs: [K("pitch", "PITCH", "osc", { bi: true }), K("glide", "GLIDE", "osc"), K("oscEdit", "EDIT", "osc")] },
       { t: "FILTER", g: "flt", ty: function (pt) { return pt.filterTypeName; },
         graph: addW({ kind: "filter", part: "sel", f: ["cutoff", "reso", "filterType"], g: "flt" }),
-        knobs: [K("cutoff", "CUTOFF", "flt"), K("reso", "RESO", "flt")] },
+        knobs: [K("cutoff", "CUTOFF", "flt"), K("reso", "RESO", "flt"), K("filterEG", "EG INT", "flt", { bi: true })] },
       { t: "MOD", g: "mod", ty: function (pt) { return "#" + pt.modType; },
-        knobs: [K("filterEG", "EG INT", "mod", { bi: true }), K("modDepth", "DEPTH", "mod"), K("modSpeed", "SPEED", "mod")] },
+        knobs: [K("modDepth", "DEPTH", "mod"), K("modSpeed", "SPEED", "mod")] },
       { t: "AMP", g: "mix",
         knobs: [K("level", "LEVEL", "mix", { ref: LEVEL_REF }), K("pan", "PAN", "mix", { bi: true })] },
       { t: "EG", g: "env", graph: addW({ kind: "env", part: "sel", f: ["attack", "decay"], g: "env" }),
@@ -674,7 +679,7 @@
       for (c = 0; c < ALL_COLS.length; c++) {
         var D = ALL_COLS[c], w = addW({ kind: D.kind, part: p, f: D.f, g: D.g, bi: D.bi, ref: D.ref, nv: true, pad: 3, col: c });
         ALLW[p].push(w);
-        h += wHTML(w, "", D.kind === "toggle" ? "mini al" : (D.kind === "knob" ? "nv" : (D.kind === "hbar" ? "" : "graph")));
+        h += wHTML(w, "", D.kind === "toggle" ? "mini al" : (D.kind === "knob" ? "nv" : (D.kind === "hbar" ? "" : "graph nv")));
       }
     }
     $("allBox").innerHTML = h;
@@ -689,6 +694,7 @@
   }
   // フィルターの絵：横軸＝周波数（対数、約 8 オクターブ）、縦軸＝音量。カットオフで曲がり角、レゾナンスで山の高さ
   //   形の目安（2 次のフィルターの式）。本体の実際の特性とは同じではなく、雰囲気を見るためのもの
+  //   種類の番号（elecmidi の表）：0 OFF / 1〜6 LPF / 7〜11 HPF / 12〜16 BPF。実機で 7 = electribe HPF を確認済み
   function filterKind(t) { return t === 0 ? "off" : (t <= 6 ? "lp" : (t <= 11 ? "hp" : "bp")); }
   function filterPath(W, H, type, cut, res) {
     var y0 = Math.round(H * 0.42), kind = filterKind(type), pts = [];
@@ -705,6 +711,15 @@
       pts.push(x.toFixed(1) + " " + y.toFixed(1));
     }
     return "M" + pts.join(" L");
+  }
+  // ALL のフィルターの絵に小さく種類（LPF/HPF/BPF）を出す。カットオフ（山）と反対側の上隅に置いて、線と重ならないようにする
+  function filterTag(w, type, cut) {
+    var kind = filterKind(type), t = $(w.id + "t");
+    if (!w.nv) { t.textContent = ""; return; }
+    t.textContent = kind === "off" ? "OFF" : kind.toUpperCase() + "F";
+    var right = cut < 64;
+    t.setAttribute("text-anchor", right ? "end" : "start");
+    t.setAttribute("x", right ? w.gw - 2 : 2); t.setAttribute("y", 9);
   }
   // EG の絵：アタックで立ち上がり、ディケイで下がる形（時間の長さは目安）
   function envPath(W, H, atk, dcy) {
@@ -772,6 +787,7 @@
       $(w.id + "a").setAttribute("d", d);
       $(w.id + "f").setAttribute("d", d + " L" + w.gw + " " + w.gh + " L0 " + w.gh + " Z");
       $(w.id + "b").setAttribute("d", "M0 " + by + " L" + w.gw + " " + by);
+      if (w.kind === "filter") filterTag(w, pt.filterType, pt.cutoff);
     }
     if (el.className.indexOf(" act") >= 0 && !act) el.className = el.className.replace(/ act/g, "");
   }
@@ -881,8 +897,9 @@
   //   セルをタップ → 大きな数字キー → ENTER を押したときだけ CC を送る。なぞって値を変える操作はしない（本体のつまみに任せる）
   //   パネルは、入力中の行と反対側の半分に出す（1〜8 行目なら下半分、9〜16 行目なら上半分）。見えている側のセルをタップすると対象が移る
   //   ENTER：送って、このまま続けて入力できる / ENTER ↓：送って、次のパートの同じ項目へ（何も打っていなければ送らずに移るだけ）
+  //   AMP EG は CC がないので数字キーは出ない（タップすると一瞬薄くなるだけ）
   var KP_LABEL = { oscEdit: "OSC EDIT", pitch: "PITCH", glide: "GLIDE", cutoff: "CUTOFF", reso: "RESO", filterEG: "EG INT", modDepth: "MOD DEPTH", modSpeed: "MOD SPEED",
-                   level: "LEVEL", pan: "PAN", attack: "ATTACK", decay: "DECAY", ifxOn: "IFX", ifxEdit: "IFX EDIT", mfxSend: "MFX SEND" };
+                   level: "LEVEL", pan: "PAN", attack: "ATTACK", decay: "DECAY", ifxOn: "IFX", ifxEdit: "IFX EDIT", mfxSend: "MFX SEND", ampEG: "AMP EG" };
   var kp = { open: false, p: 1, col: 0, fields: [], fi: 0, entry: "", neg: false, fresh: true, keys: [], sentAt: 0 };
   function kpF() { return kp.fields[kp.fi]; }
   function kpKind(f) { return E2.FIELDS[f].kind; }
@@ -913,7 +930,7 @@
   function kpOpen(p, col, fi) {
     if (!mixUsable()) return false;
     var all = ALL_COLS[col].f instanceof Array ? ALL_COLS[col].f : [ALL_COLS[col].f], fs = [];
-    for (var i = 0; i < all.length; i++) if (E2.FIELDS[all[i]] && E2.FIELDS[all[i]].cc) fs.push(all[i]);     // 送れる項目だけ（フィルター種類などは除く）
+    for (var i = 0; i < all.length; i++) if (E2.FIELDS[all[i]] && E2.FIELDS[all[i]].cc) fs.push(all[i]);     // 送れる項目だけ（フィルター種類・AMP EG などは除く）
     if (!fs.length) return false;
     var keepFi = kp.open && kp.col === col ? kp.fi : 0;
     kpMark(false);
@@ -1114,7 +1131,7 @@
   var COLS = [
     ["MFX", "mfxSend", "toggle"], ["IFX", "ifxOn", "toggle"],
     ["Lvl", "level"], ["Pan", "pan"], ["Cut", "cutoff"], ["Res", "reso"], ["EGi", "filterEG"],
-    ["Atk", "attack"], ["Dcy", "decay"], ["Ptch", "pitch"], ["Gld", "glide"], ["OscE", "oscEdit"],
+    ["Atk", "attack"], ["Dcy", "decay"], ["AEG", "ampEG"], ["Ptch", "pitch"], ["Gld", "glide"], ["OscE", "oscEdit"],
     ["ModD", "modDepth"], ["ModS", "modSpeed"], ["IFXE", "ifxEdit"], ["Filter", "filterTypeName"]
   ];
   var midiLines = [], verifyLines = [];
@@ -1146,6 +1163,7 @@
     if (!el) return;
     var v = E2.state.parts[p][f];
     if (el.className.indexOf("tg") >= 0) { el.textContent = v ? "ON" : "off"; el.className = "tg" + (v ? " on" : ""); }
+    else if (f === "ampEG") el.textContent = v ? "ON" : "off";
     else el.textContent = (f === "mute") ? (v ? "Mute" : "-") : v;
     if (flash) {
       var td = el.tagName === "TD" ? el : el.parentNode;
@@ -1239,9 +1257,11 @@
     s.push("XY: X " + padX + " Y " + padY + " HOLD " + (hold ? "ON" : "OFF"));
     if (st.loaded) s.push("全体: パターン " + (st.program === null ? "?" : st.program + 1) + " " + st.source + " " + st.global.name + " BPM " + st.global.tempo + " / " + $("gLoaded").textContent);
     if (st.loaded) {
-      var vs = [];
-      for (var p = 1; p <= 16; p++) vs.push(p + ":" + st.parts[p].voiceAssign);
+      var vs = [], fs = [], as = [];
+      for (var p = 1; p <= 16; p++) { vs.push(p + ":" + st.parts[p].voiceAssign); fs.push(p + ":" + st.parts[p].filterType); as.push(p + ":" + st.parts[p].ampEG); }
       s.push("ボイス（パート:値）: " + vs.join(" "));
+      s.push("フィルター種類（パート:番号）: " + fs.join(" "));
+      s.push("AMP EG（パート:値）: " + as.join(" "));
     }
     s.push("--- 照合 ---");
     s.push(verifyLines.slice(0, 30).join("\n") || "なし");

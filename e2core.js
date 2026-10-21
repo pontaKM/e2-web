@@ -1,5 +1,5 @@
 /*
- * e2core.js  —  electribe2 用の土台（接続層＋状態層）  v7
+ * e2core.js  —  electribe2 用の土台（接続層＋状態層）  v9
  *
  * 基本方針（v6〜）：
  *   再生中の e2 にダンプを要求すると、データが欠けるうえに演奏がつっかえる（実機で確認）。
@@ -9,6 +9,19 @@
  *       （e2 は保存せずにパターンを切り替えると編集が元に戻る＝切替後は保存データと同じ）
  *     - 再生中のつまみ操作は CC で即時に反映
  *     - 停止したら1回だけ読み直して、表示が正しかったか確かめる
+ *
+ * v8：先読みデータが古くなる問題への対策（本体で保存し直したパターンを、iPad の古いデータで表示してしまう）
+ *     - 停止したら、今のパターンの保存データも読み直して、先読みデータを新しくする
+ *     - 停止中にパターンを切り替えたら、切替前のパターンの保存データを読み直す（保存してから切り替えた場合）
+ *     - 停止中にパターンを切り替えた直後の本体データ＝保存データなので、それで先読みデータを新しくする
+ *     - 停止中は数秒おきに、今のパターンの保存データを確かめる（停止中に保存した場合）
+ *     - 停止中に今と同じパターン番号が届いたときは、先読みデータで表示を上書きしない（本体から読む）
+ *
+ * v9：CC が届かない項目（フィルター種類、AMP EG、ミュート、IFX・Mod の種類など）を表示に反映する
+ *     - 停止中は数秒おきに、今のパターンの本体データ（0x10）も読む。表示と違っていたときだけ表示を入れ替える
+ *       （本体で LPF/HPF/BPF ボタンや Amp EG ボタンを押しても MIDI は何も届かないため）
+ *     - 再生中は今までどおり読まない（停止したときにまとめて反映）
+ *     - AMP EG のオン/オフ（パート内 +0x1A）を読む（表示だけ。CC がないので送信はできない）
  *
  * 画面側の使い方：
  *   E2.on(function (type, detail) { ... });   // 変化の通知
@@ -52,6 +65,7 @@
     decay:       { off: 0x15, kind: "u", cc: 72 },
     level:       { off: 0x18, kind: "u", cc: 7 },
     pan:         { off: 0x19, kind: "s", cc: 10 },
+    ampEG:       { off: 0x1A, kind: "b" },              // Amp EG ボタン（CC なし。表示だけ）
     mfxSend:     { off: 0x1B, kind: "b", cc: 105 },
     ifxOn:       { off: 0x20, kind: "b", cc: 104 },
     ifxType:     { off: 0x21, kind: "r" },
@@ -93,7 +107,9 @@
     verifyMinInterval: 3000,
     maxRetries: 3,               // 停止中の読み込み失敗時の読み直し回数
     retryInterval: 300,
-    dumpWhilePlaying: false      // true にすると、先読みがないとき再生中でも読みに行く（音切れの危険あり）
+    dumpWhilePlaying: false,     // true にすると、先読みがないとき再生中でも読みに行く（音切れの危険あり）
+    idleRefreshMs: 8000,         // 停止中、今のパターンの保存データを確かめる間隔（0 で確かめない）
+    idleCurrentMs: 4000          // 停止中、今のパターンの本体データを確かめる間隔（0 で確かめない）。CC が届かない項目の反映用
   };
 
   // ---------------- 通知 ----------------
@@ -162,6 +178,7 @@
         }
         enqueue({ kind: "current", reason: "起動" });
       }, 800);
+      setInterval(idleTick, 1000);
     }, function (err) {
       status.midi = "denied";
       emit("error", "MIDI を使えませんでした：" + err);
@@ -279,6 +296,8 @@
     }
     // 停止したら1回読み直して、表示が正しかったか確かめる
     enqueue({ kind: "current", reason: "停止時の確認", check: true });
+    // 再生中に本体で保存していた場合に備えて、今のパターンの保存データも読み直す（先読みデータを新しくする）
+    if (state.program !== null) refreshStored(state.program, "停止時の確認");
     pumpQueue();
   }
   function isPlaying() { return status.playing === true; }
@@ -307,11 +326,15 @@
     cancelVerify();
     if (!isPlaying()) {
       // 停止中：e2 はすぐ切り替わる
-      emit("midi", ts() + " パターン " + patName(n) + " に切替（停止中）");
+      var old = state.program, same = (n === old && state.source === "本体");
+      emit("midi", ts() + " パターン " + patName(n) + " に切替（停止中）" + (same ? "（今と同じ番号なので、先読みデータは使わず本体から読みます）" : ""));
       clearSwitchTimer();
       state.program = n;
-      if (cache[n]) loadData(cache[n], "保存データ", "パターン切替（先読み）", 0, true);
-      enqueue({ kind: "current", reason: "パターン切替", check: !!cache[n] });
+      if (!same && cache[n]) loadData(cache[n], "保存データ", "パターン切替（先読み）", 0, true);
+      // 切り替えた直後の本体データは保存データと同じなので、それで先読みデータを新しくする（同じ番号のときは除く）
+      enqueue({ kind: "current", reason: "パターン切替", check: !same && !!cache[n], storedOf: same ? undefined : n });
+      // 切替前のパターンは、停止中に保存してから切り替えた可能性があるので、保存データを読み直す
+      if (old !== null && old !== n) refreshStored(old, "切替前のパターン");
       return;
     }
     // 再生中：ループの区切りで切り替わる。e2 には何も要求しない
@@ -350,17 +373,34 @@
   }
 
   // ---------------- 読み込みの順番待ち ----------------
-  //   job = { kind:"current"|"stored", index, reason, check, force, tries }
+  //   job = { kind:"current"|"stored", index, reason, check, force, tries, refresh, quiet, idle, storedOf, tq }
+  //     refresh：先読みデータを新しくするための読み直し（先読みの進み具合には数えない）
+  //     idle：停止中の定期確認（今のパターン）。表示と同じなら何もしない。失敗しても読み直さない
+  //     storedOf：切替直後の本体データ。読めたらそのパターンの先読みデータを新しくする
   var queue = [], job = null, jobTimer = null, retryTimer = null;
   var fetchTotal = 0, fetchDone = 0, fetchT0 = 0;
 
   function enqueue(j) {
-    // 同じ「今のパターン」の読み込みが待っていれば1つにまとめる
+    j.tq = j.tq || Date.now();
     if (j.kind === "current") {
-      for (var i = 0; i < queue.length; i++) if (queue[i].kind === "current") { queue[i].reason = j.reason; queue[i].check = queue[i].check || j.check; queue[i].force = queue[i].force || j.force; pumpQueue(); return; }
+      // 同じ「今のパターン」の読み込みが待っていれば1つにまとめる
+      for (var i = 0; i < queue.length; i++) if (queue[i].kind === "current") {
+        queue[i].reason = j.reason; queue[i].check = queue[i].check || j.check; queue[i].force = queue[i].force || j.force;
+        queue[i].quiet = queue[i].quiet && j.quiet; queue[i].idle = queue[i].idle && j.idle;
+        if (j.storedOf !== undefined) queue[i].storedOf = j.storedOf;
+        pumpQueue(); return;
+      }
       queue.unshift(j);      // 今のパターンは先読みより優先
+    } else if (j.refresh) {
+      for (var k = 0; k < queue.length; k++) if (queue[k].refresh && queue[k].index === j.index) { pumpQueue(); return; }
+      var at = 0;
+      while (at < queue.length && queue[at].kind === "current") at++;
+      queue.splice(at, 0, j);  // 今のパターンの次に（先読みより優先）
     } else queue.push(j);
     pumpQueue();
+  }
+  function refreshStored(index, reason) {
+    enqueue({ kind: "stored", index: index, reason: reason, refresh: true, quiet: true });
   }
   function pumpQueue() {
     if (job || retryTimer || status.midi !== "ready") return;
@@ -379,11 +419,10 @@
     if (job.kind === "stored") msg = [0xF0, 0x42, 0x30 + options.globalCh - 1, 0x00, 0x01, PRODUCT_ID, 0x1C, job.index % 128, Math.floor(job.index / 128), 0xF7];
     else msg = [0xF0, 0x42, 0x30 + options.globalCh - 1, 0x00, 0x01, PRODUCT_ID, 0x10, 0xF7];
     job.t0 = Date.now();
-    if (job.kind === "stored" && !fetchT0) fetchT0 = job.t0;
+    if (job.kind === "stored" && !job.refresh && !fetchT0) fetchT0 = job.t0;
     job.playing = isPlaying();
     if (!send(msg)) { job = null; return; }
-    status.busy = true;
-    emit("status", status);
+    if (!job.quiet) { status.busy = true; emit("status", status); }
     jobTimer = setTimeout(function () { jobTimer = null; jobFailed("応答なし"); }, 4000);
   }
   function jobFailed(why) {
@@ -392,20 +431,26 @@
     var j = job;
     job = null;
     status.busy = false;
+    if (j.idle) {                            // 定期確認は読み直さない（次の回に任せる）
+      emit("midi", ts() + " 停止中の定期確認（今のパターン）の読み込み失敗（" + why + "）");
+      pumpQueue();
+      emit("status", status);
+      return;
+    }
     if (isPlaying() && !j.force) {          // 再生が始まった：数えずに順番待ちへ戻し、停止を待つ
       queue.unshift(j);
       emit("status", status);
       return;
     }
     j.tries++;
-    var label = j.kind === "stored" ? "保存パターン " + patName(j.index) : "今のパターン（" + j.reason + "）";
+    var label = j.kind === "stored" ? "保存パターン " + patName(j.index) + (j.refresh ? "（" + j.reason + "）" : "") : "今のパターン（" + j.reason + "）";
     if (j.tries <= options.maxRetries) {
       emit("midi", ts() + " " + label + " の読み込み失敗（" + why + "）。読み直します");
       queue.unshift(j);
       retryTimer = setTimeout(function () { retryTimer = null; pumpQueue(); }, options.retryInterval);
     } else {
       emit("error", ts() + " " + label + " を読み込めませんでした（" + why + "）");
-      if (j.kind === "stored") stepFetch();
+      if (j.kind === "stored" && !j.refresh) stepFetch();
       pumpQueue();
     }
     emit("status", status);
@@ -434,9 +479,6 @@
 
     var j = job, ms = Date.now() - j.t0;
     if (j.kind === "stored") {
-      cache[j.index] = toBytes(data);
-      cacheCount = countCache();
-      saveOne(j.index, cache[j.index]);
       // 今のパターンを本体から読んだデータがあれば、保存データと比べておく（番号指定の読み込みが正しいかの確認）
       if (state.program === null && currentRaw && state.source === "本体") {
         var same = true;
@@ -446,17 +488,39 @@
           emit("midi", ts() + " 今のパターンは " + patName(j.index) + " と推定（保存データと完全に一致）");
           emit("loaded", state);
         }
-      } else if (j.index === state.program && currentRaw && state.source === "本体") {
+      } else if (!j.refresh && j.index === state.program && currentRaw && state.source === "本体") {
         var diff = 0;
         for (var q = 0; q < DUMP_SIZE; q++) if (currentRaw[q] !== data[q]) diff++;
         emit("midi", ts() + " 確認：保存パターン " + patName(j.index) + " と今のパターンの差 " + diff + " バイト" + (diff ? "（保存していない編集があれば差が出ます）" : "（一致）"));
       }
-      stepFetch(j.index, data);
+      if (j.refresh) {
+        lastRefreshAt = Date.now();
+        var changed = updateStored(j.index, data, j.reason);
+        // 表示が古い先読みデータのままなら、新しいほうに直す
+        if (changed && j.index === state.program && state.source === "保存データ" && !isPlaying())
+          loadData(cache[j.index], "保存データ", "先読みデータの更新", 0, true);
+      } else {
+        cache[j.index] = toBytes(data);
+        cacheCount = countCache();
+        saveOne(j.index, cache[j.index]);
+        stepFetch(j.index, data);
+      }
     } else {
+      // 停止中の定期確認：表示の元のデータと同じなら何もしない（再描画しない）
+      if (j.idle && lastData && state.source === "本体" && sameData(data, lastData)) { currentRaw = data; jobDone(); return; }
+      if (j.idle) emit("midi", ts() + " 停止中の定期確認：本体の値が変わっていたので表示を直します（CC が届かない項目：フィルター種類・AMP EG・ミュートなど）");
       currentRaw = data;
       loadData(data, "本体", j.reason, ms, false, j.check);
+      // 停止中にパターンを切り替えた直後の本体データ＝保存データ。その後に操作していなければ先読みデータを新しくする
+      if (j.storedOf !== undefined && j.storedOf === state.program && !j.playing && !isPlaying() && lastEditAt < j.tq)
+        updateStored(j.storedOf, data, "切替直後の本体データ");
     }
     jobDone();
+  }
+  function sameData(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
   }
   function decode7(src) {
     var out = [];
@@ -475,6 +539,42 @@
   // ---------------- 先読み ----------------
   var cache = {}, cacheCount = 0, currentRaw = null;
   function countCache() { var n = 0; for (var k in cache) n++; return n; }
+
+  // 先読みデータを新しいデータに入れ替える（違っていたときだけ）。入れ替えたら true
+  var lastRefreshAt = 0, lastEditAt = 0, lastIdleCurrentAt = 0;
+  function updateStored(index, data, why) {
+    var old = cache[index], diff = 0;
+    if (old) {
+      for (var i = 0; i < DUMP_SIZE; i++) if (old[i] !== data[i]) diff++;
+      if (!diff) return false;
+    }
+    cache[index] = toBytes(data);
+    cacheCount = countCache();
+    saveOne(index, cache[index]);
+    emit("midi", ts() + " パターン " + patName(index) + " の先読みデータを" + (old ? "更新（本体で保存し直されていた。差 " + diff + " バイト、" : "新しく保存（") + why + "）");
+    emit("cache", { done: 0, total: 0, count: cacheCount });
+    return true;
+  }
+  // 停止中に毎秒呼ばれる：
+  //   ・数秒おきに今のパターンの本体データを読む（本体で押したフィルター種類・AMP EG などは CC が届かないため）
+  //   ・数秒おきに今のパターンの保存データを確かめる（停止中に本体で保存した場合に、先読みデータを新しくする）
+  function idleTick() {
+    if (status.midi !== "ready" || !status.outName) return;
+    if (status.playing === true || Date.now() - lastNoteAt < 1500) return;       // 再生中（またはその疑い）は読まない
+    if (job || retryTimer || queue.length) return;
+    var now = Date.now();
+    if (now - lastEditAt < 2000) return;                                         // つまみを回している最中は読まない
+    var lastLoad = state.loadedAt ? state.loadedAt.getTime() : 0;
+    if (options.idleCurrentMs && state.loaded && now - lastIdleCurrentAt >= options.idleCurrentMs && now - lastLoad >= options.idleCurrentMs) {
+      lastIdleCurrentAt = now;
+      enqueue({ kind: "current", reason: "停止中の定期確認", quiet: true, idle: true });
+      return;
+    }
+    if (options.idleRefreshMs && state.program !== null && now - lastRefreshAt >= options.idleRefreshMs) {
+      lastRefreshAt = now;
+      refreshStored(state.program, "停止中の定期確認");
+    }
+  }
 
   // ---------------- iPad への保存（次回から先読み不要にする） ----------------
   // パターンデータは大部分が 0 なので、0 の連続を縮めてから文字列にして localStorage に入れる
@@ -564,7 +664,7 @@
   }
   function cancelFetch() {
     var keep = [];
-    for (var i = 0; i < queue.length; i++) if (queue[i].kind !== "stored") keep.push(queue[i]);
+    for (var i = 0; i < queue.length; i++) if (queue[i].kind !== "stored" || queue[i].refresh) keep.push(queue[i]);
     queue = keep;
     status.fetching = null;
     emit("midi", ts() + " 先読みを中止（" + cacheCount + " パターン読込済み）");
@@ -647,6 +747,7 @@
   // ---------------- 操作の反映と照合 ----------------
   function applyPart(p, field, value, source) {
     if (!state.loaded || !state.parts[p]) return;
+    lastEditAt = Date.now();
     touched[PART_BASE + PART_LEN * (p - 1) + FIELDS[field].off] = true;
     state.parts[p][field] = value;
     emit("part", { part: p, field: field, value: value, source: source });
@@ -688,7 +789,7 @@
 
   // ---------------- 公開 ----------------
   global.E2 = {
-    version: "core-v7",
+    version: "core-v9",
     FIELDS: FIELDS,
     state: state,
     status: status,
@@ -706,6 +807,7 @@
     setAllParts: setAllParts,
     setPad: setPad,
     patternMs: function () { return patternMs(state.global); },
-    _decode7: decode7
+    _decode7: decode7,
+    _feed: feed, _onSysex: onSysex
   };
 })(this);
